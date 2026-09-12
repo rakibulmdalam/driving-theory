@@ -176,6 +176,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
 .flash .back .a b{color:var(--green)}
 .flash .back .ex{font-size:13.5px;color:var(--ink-soft);line-height:1.4;max-width:44ch}
 .flash .media img{max-height:180px}.flash .media video{max-height:200px}
+.flash .csign{display:grid;place-items:center}.flash .csign svg{width:104px;height:104px}
 .fnav{display:flex;align-items:center;justify-content:center;gap:14px}
 .fnav .pos{font-variant-numeric:tabular-nums;color:var(--ink-soft);min-width:80px;text-align:center;font-weight:600}
 .fknow{display:flex;gap:10px;justify-content:center;margin-top:14px}
@@ -309,11 +310,12 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
   <!-- FLASHCARDS -->
   <section class="panel" id="p-cards">
     <h2 class="sechead">Flashcards</h2>
-    <p class="lead">Question on the front, correct answer and explanation on the back. Build a deck from any topic, or use the curated <b>Key numbers</b> deck. Tap the card to flip.</p>
+    <p class="lead">Two curated decks — a full <b>Core theory</b> set or a quick <b>Key numbers</b> set — plus <b>every official question</b> as a flashcard. Pick the deck, then tap a card to flip.</p>
     <div class="controls">
       <select id="fSource" aria-label="Deck source">
-        <option value="key">★ Key numbers &amp; facts (curated)</option>
-        <option value="bank">Official question bank</option>
+        <option value="core">★ Core theory — full essentials</option>
+        <option value="key">★ Key numbers only — quick recall</option>
+        <option value="bank">All official questions</option>
       </select>
       <select id="fTheme" aria-label="Topic" class="hide"></select>
       <select id="fFilter" aria-label="Filter" class="hide">
@@ -326,6 +328,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
       <button class="chip" id="fShuffle">Shuffle</button>
       <span class="count-pill" id="fDeckCount"></span>
     </div>
+    <p class="count-pill" id="fModeHint" style="margin:-6px 0 14px"></p>
     <div class="flashwrap">
       <div class="flash" id="flash">
         <div class="inner">
@@ -390,7 +393,15 @@ const SIGNS={
   endr:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#333" stroke-width="4"/><line x1="20" y1="80" x2="80" y2="20" stroke="#333" stroke-width="6"/><line x1="26" y1="82" x2="82" y2="26" stroke="#333" stroke-width="6"/></svg>`,
   zone30:`<svg viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80" rx="6" fill="#fff" stroke="#333" stroke-width="4"/><circle cx="50" cy="42" r="26" fill="#fff" stroke="#C5221F" stroke-width="7"/><text x="50" y="53" font-family="Barlow Condensed,sans-serif" font-weight="700" font-size="26" fill="#111" text-anchor="middle">30</text><text x="50" y="84" font-family="Barlow Condensed,sans-serif" font-weight="600" font-size="15" fill="#111" text-anchor="middle">ZONE</text></svg>`,
   oneway:`<svg viewBox="0 0 100 100"><rect x="8" y="34" width="84" height="32" rx="3" fill="#0B57A4"/><polygon points="20,50 68,50 68,43 84,50 68,57 68,50" fill="#fff"/></svg>`,
-  priorityroad:`<svg viewBox="0 0 100 100"><rect x="24" y="24" width="52" height="52" transform="rotate(45 50 50)" fill="#F2C200" stroke="#111" stroke-width="4"/></svg>`
+  priorityroad:`<svg viewBox="0 0 100 100"><rect x="24" y="24" width="52" height="52" transform="rotate(45 50 50)" fill="#F2C200" stroke="#111" stroke-width="4"/></svg>`,
+  noovertake:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#C5221F" stroke-width="8"/><rect x="27" y="40" width="20" height="28" rx="4" fill="#C5221F"/><rect x="53" y="40" width="20" height="28" rx="4" fill="#222"/></svg>`,
+  nopark:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#0B57A4" stroke="#C5221F" stroke-width="8"/><line x1="26" y1="26" x2="74" y2="74" stroke="#C5221F" stroke-width="8"/></svg>`,
+  nostop:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#0B57A4" stroke="#C5221F" stroke-width="8"/><line x1="26" y1="26" x2="74" y2="74" stroke="#C5221F" stroke-width="8"/><line x1="74" y1="26" x2="26" y2="74" stroke="#C5221F" stroke-width="8"/></svg>`,
+  roundabout:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#0B57A4"/><circle cx="50" cy="50" r="22" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="26 9"/><polygon points="73,50 63,44 63,56" fill="#fff"/><polygon points="38,73 32,63 44,63" fill="#fff"/><polygon points="40,27 46,37 34,37" fill="#fff"/></svg>`,
+  giveoncoming:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#C5221F" stroke-width="8"/><line x1="40" y1="26" x2="40" y2="72" stroke="#C5221F" stroke-width="7" stroke-linecap="round"/><polygon points="40,80 32,64 48,64" fill="#C5221F"/><line x1="60" y1="74" x2="60" y2="28" stroke="#111" stroke-width="7" stroke-linecap="round"/><polygon points="60,20 52,36 68,36" fill="#111"/></svg>`,
+  prioroncoming:`<svg viewBox="0 0 100 100"><rect x="12" y="12" width="76" height="76" rx="6" fill="#0B57A4"/><line x1="60" y1="80" x2="60" y2="28" stroke="#fff" stroke-width="9" stroke-linecap="round"/><polygon points="60,20 50,36 70,36" fill="#fff"/><line x1="38" y1="26" x2="38" y2="70" stroke="#C5221F" stroke-width="7" stroke-linecap="round"/><polygon points="38,78 30,62 46,62" fill="#C5221F"/></svg>`,
+  pedcross:`<svg viewBox="0 0 100 100"><rect x="12" y="12" width="76" height="76" rx="6" fill="#0B57A4"/><polygon points="50,22 82,74 18,74" fill="#fff"/><circle cx="47" cy="39" r="4" fill="#111"/><path d="M47 44 l-6 12 M47 44 l5 10 M47 47 l-8 3 M47 47 l9 4 M41 56 l-3 12 M52 54 l3 12" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/><g fill="#111"><rect x="38" y="70" width="6" height="3"/><rect x="48" y="70" width="6" height="3"/><rect x="58" y="70" width="6" height="3"/></g></svg>`,
+  slippery:`<svg viewBox="0 0 100 100"><polygon points="50,10 90,84 10,84" fill="#fff" stroke="#C5221F" stroke-width="7" stroke-linejoin="round"/><rect x="40" y="40" width="20" height="12" rx="2" fill="#111"/><path d="M30 66 q10 -8 20 0 t20 0" stroke="#111" stroke-width="4" fill="none"/><path d="M34 60 l-6 6 M66 60 l6 6" stroke="#111" stroke-width="3"/></svg>`
 };
 const SEC_ICON={
   vorfahrt:SIGNS.yield,signs:SIGNS.priority,speed:SIGNS.speed,
@@ -749,15 +760,84 @@ const KEYCARDS=[
  ["Eco","When to shift up for economy?","<b>~2,000 rpm</b>, highest smooth gear","",],
  ["Eco","What lets you drive in an Umweltzone?","A valid <b>Umweltplakette</b> (green)","On the windscreen."]
 ];
+const CORECARDS=[
+ {cat:"Sign",sign:"priorityroad",q:"What does the yellow diamond mean?",a:"<b>Priority road</b> — you have right of way along this road until it ends."},
+ {cat:"Sign",sign:"yield",q:"Inverted triangle?",a:"<b>Give way</b> to traffic on the crossing road. No full stop needed if it's clear."},
+ {cat:"Sign",sign:"stop",q:"Octagon (STOP)?",a:"<b>Stop completely every time</b>, then give way — even if the road looks clear."},
+ {cat:"Sign",sign:"noentry",q:"Red circle with a white bar?",a:"<b>No entry</b> — usually the wrong-way end of a one-way street."},
+ {cat:"Sign",sign:"noovertake",q:"Two cars (red + black) in a red circle?",a:"<b>No overtaking</b> of multi-track vehicles until the restriction is lifted."},
+ {cat:"Sign",sign:"nopark",q:"Blue circle, red border, one slash?",a:"<b>No parking</b> — brief stopping (Halten) is still allowed."},
+ {cat:"Sign",sign:"nostop",q:"Blue circle, red border, red X?",a:"<b>No stopping</b> (Halteverbot) — don't even pause here."},
+ {cat:"Sign",sign:"roundabout",q:"Blue circle with three arrows?",a:"<b>Roundabout</b> — give way to traffic already on it; don't indicate on entry, do indicate when leaving."},
+ {cat:"Sign",sign:"giveoncoming",q:"Red down-arrow + black up-arrow?",a:"<b>Give way to oncoming traffic</b> at a narrow section — the red arrow (your direction) waits."},
+ {cat:"Sign",sign:"prioroncoming",q:"Blue square, white up-arrow + red down-arrow?",a:"<b>Priority over oncoming traffic</b> at a narrow section — you go first."},
+ {cat:"Sign",sign:"pedcross",q:"Blue square with a walking figure on stripes?",a:"<b>Pedestrian crossing</b> (Zebrastreifen) — let people cross; no overtaking on the approach."},
+ {cat:"Sign",sign:"zone30",q:"‘30 ZONE’ sign?",a:"<b>30 km/h zone</b> until the ‘end of zone’ sign; usually rechts-vor-links applies throughout."},
+ {cat:"Sign",sign:"endr",q:"Grey circle with several slashes?",a:"<b>End of all restrictions</b> — previous speed/overtaking limits no longer apply."},
+ {cat:"Sign",sign:"oneway",q:"Blue rectangle with a white arrow?",a:"<b>One-way street</b> — traffic flows only in the arrow's direction."},
+ {cat:"Sign",sign:"slippery",q:"Triangle with a skidding car?",a:"<b>Slippery road</b> — reduce speed, increase distance, brake and steer gently."},
+ {cat:"Technology",q:"What does ABS do, and how do you use it?",a:"Stops the wheels <b>locking</b> under hard braking so you can still steer. <b>Brake firmly and keep steering</b>.",e:"You may feel the pedal pulsing — that's normal; don't ease off."},
+ {cat:"Technology",q:"What does ESP do?",a:"Electronic Stability Program — brakes individual wheels to stop the car <b>skidding or spinning</b> in a sudden swerve."},
+ {cat:"Technology",q:"How does doubling your speed affect braking distance?",a:"It roughly <b>quadruples</b> the braking distance.",e:"Braking distance grows with the square of speed: (v÷10)²."},
+ {cat:"Technology",q:"What is aquaplaning and how do you react?",a:"Tyres lose grip on a film of water. <b>Ease off the accelerator</b>, don't brake hard or steer sharply.",e:"Worn tyres and high speed make it far more likely."},
+ {cat:"Technology",q:"Red vs yellow warning light on the dash?",a:"<b>Red = stop and investigate now</b>; yellow/amber = a fault, get it checked soon."},
+ {cat:"Technology",q:"Signs your brakes need checking?",a:"A <b>spongy pedal</b>, longer travel, or the car <b>pulling to one side</b> when braking — check immediately."},
+ {cat:"Technology",q:"When do you check oil and coolant?",a:"Regularly, with the <b>engine cool</b> and the car level. Low levels cause serious engine damage."},
+ {cat:"Technology",q:"How should you load the car and roof?",a:"Load <b>low and toward the front</b>, secure against sliding, don't exceed roof/axle limits. Mark overhang.",e:"Unsecured loads become projectiles under braking."},
+ {cat:"Technology",q:"When replace a tyre even if tread is legal?",a:"If it has <b>cracks, bulges, or uneven/one-sided wear</b>, or is too old.",e:"Legal minimum tread is 1.6 mm; more is safer in the wet."},
+ {cat:"Technology",q:"When do you use dipped beam vs fog lights?",a:"<b>Dipped beam</b> in tunnels, poor light, at night. <b>Rear fog light only when visibility is under ~50 m</b>.",e:"Dip for oncoming traffic; don't dazzle."},
+ {cat:"Technology",q:"What do worn shock absorbers cause?",a:"The car keeps <b>bouncing</b> after a bump; grip and braking suffer — get them checked."},
+ {cat:"Technology",q:"Care around the battery?",a:"A charging battery gives off <b>explosive gas</b> — no flames/sparks; keep terminals clean; a weak battery causes hard starting."},
+ {cat:"Technology",q:"Engine braking — why use it?",a:"Lift off in gear (or drop a gear downhill) to <b>slow without the brakes</b> — saves fuel, prevents brake fade on descents."},
+ {cat:"Technology",q:"Trailer/towing basics?",a:"Respect the car's <b>towing limit</b> and the coupling's <b>nose weight</b>; a loaded trailer lengthens braking and needs lower speed."},
+ {cat:"Behaviour",q:"When may you overtake?",a:"Only with a <b>clear view and space</b>, clearly faster than the vehicle ahead, and signalling. Never force it by speeding."},
+ {cat:"Behaviour",q:"Where is overtaking forbidden?",a:"At <b>level crossings, pedestrian crossings, in poor visibility</b>, and where a sign or unbroken line forbids it."},
+ {cat:"Behaviour",q:"How much room when overtaking a cyclist?",a:"At least <b>1.5 m in town, 2 m outside</b> — wait if you can't give it."},
+ {cat:"Behaviour",q:"Reversing or joining from a driveway?",a:"You have <b>no priority</b> and must not endanger anyone — observe carefully or get help."},
+ {cat:"Behaviour",q:"Merging onto a motorway?",a:"Match the traffic speed on the slip road and <b>merge into a gap</b>; through traffic has priority (but should help you in)."},
+ {cat:"Behaviour",q:"The hard shoulder is for…?",a:"<b>Emergencies only</b> — never drive or overtake on it.",e:"If traffic jams, form a Rettungsgasse between the far-left lane and the rest."},
+ {cat:"Behaviour",q:"At a level crossing you must…?",a:"Approach slowly and <b>stop</b> for a red light, lowering/closed barriers, or a train — never enter unless you can clear it."},
+ {cat:"Behaviour",q:"Children, elderly or disabled people near the road?",a:"<b>Slow right down and be ready to stop</b> — they may step out or act unpredictably."},
+ {cat:"Behaviour",q:"Child-seat rule?",a:"Children <b>under 12 and under 150 cm</b> need a suitable child restraint; everyone must wear a seatbelt."},
+ {cat:"Behaviour",q:"Using a phone while driving?",a:"<b>No handheld use</b> with the engine running — hands-free only. Even that is a distraction."},
+ {cat:"Behaviour",q:"Parking on a hill?",a:"Handbrake on, in gear (or P), and <b>wheels turned to the kerb</b> so it can't roll into traffic."},
+ {cat:"Behaviour",q:"Turning across a cycle lane?",a:"Cyclists going <b>straight ahead have priority</b> — check your right and blind spot before turning."},
+ {cat:"Behaviour",q:"Daytime lights in rain or gloom?",a:"Switch on <b>dipped headlights</b> so you're seen — daytime running lights don't light the rear."},
+ {cat:"Behaviour",q:"Animal on or near the road?",a:"<b>Brake, don't swerve wildly.</b> At dusk/night expect wildlife at verges; dip your lights and slow down."},
+ {cat:"Hazard",q:"What is defensive driving?",a:"Anticipating danger and <b>allowing for others' mistakes</b> — not insisting on your right of way.",e:"The single most-tested idea in the Danger theme."},
+ {cat:"Hazard",q:"Why shoulder-check the blind spot?",a:"Mirrors don't show everything — always <b>glance over your shoulder</b> before turning, merging or opening a door."},
+ {cat:"Hazard",q:"First rain after a dry spell?",a:"The road is <b>especially slippery</b> (oil + water) — increase distance and brake gently."},
+ {cat:"Hazard",q:"Driving in fog?",a:"Slow to a speed you can <b>stop within your sight line</b>; dipped/fog lights, never full beam (it reflects back)."},
+ {cat:"Hazard",q:"Feeling tired at the wheel?",a:"Fatigue impairs you <b>like alcohol</b> — the only real fix is to stop and rest. Don't push on."},
+ {cat:"Hazard",q:"Medication and driving?",a:"Many medicines impair driving — <b>check the leaflet</b>. Illegal drugs = zero tolerance."},
+ {cat:"Hazard",q:"Another driver is aggressive/tailgating?",a:"Stay calm, <b>don't retaliate</b>, keep your distance and let them pass. Anger causes mistakes."},
+ {cat:"Hazard",q:"A ball rolls into the road / children by parked cars?",a:"<b>Expect a child to run out</b> — slow right down and cover the brake."},
+ {cat:"Hazard",q:"Biggest single risk factor in a crash?",a:"<b>Speed</b> — it lengthens reaction and braking distance and greatly worsens the impact."},
+ {cat:"Environment",q:"Best way to warm up a cold engine?",a:"<b>Drive off gently right away</b> — idling to warm up wastes fuel and pollutes more."},
+ {cat:"Environment",q:"Waiting at a long stop or level crossing?",a:"<b>Switch the engine off</b> — needless idling wastes fuel and is an offence in places."},
+ {cat:"Environment",q:"Cheap wins for fuel and emissions?",a:"<b>Correct tyre pressure</b>, remove roof boxes/dead weight, and drive smoothly looking ahead."},
+ {cat:"Environment",q:"Why are short trips wasteful?",a:"A <b>cold engine</b> uses the most fuel per km and wears fastest — combine errands into one trip."}
+];
 const fSource=$("#fSource"),fTheme=$("#fTheme"),fFilter=$("#fFilter");
+fSource.options[0].text=`★ Core theory — ${KEYCARDS.length+CORECARDS.length} cards`;
+fSource.options[1].text=`★ Key numbers only — ${KEYCARDS.length} cards`;
+fSource.options[2].text=`All ${Q.length.toLocaleString()} official questions`;
 fTheme.innerHTML=`<option value="all">All topics</option>`+META.themes.map(t=>`<option value="${t.tk}">${esc(t.th)} (${t.n})</option>`).join("");
 let deck=[],fi=0;
+const mapKey=()=>KEYCARDS.map(c=>({key:true,cat:c[0],q:c[1],a:c[2],e:c[3]}));
+const mapCore=()=>CORECARDS.map(c=>({key:true,cat:c.cat,q:c.q,a:c.a,e:c.e||"",sign:c.sign}));
 function buildDeck(){
-  if(fSource.value==="key"){
+  if(fSource.value==="core"){
     fTheme.classList.add("hide");fFilter.classList.add("hide");
-    deck=KEYCARDS.map(c=>({key:true,cat:c[0],q:c[1],a:c[2],e:c[3]}));
+    deck=[...mapCore(),...mapKey()];
+    $("#fModeHint").innerHTML=`The whole core curriculum in ${deck.length} cards — signs, vehicle technology, behaviour, hazard awareness, environment and the key numbers. Master this deck; the full bank is for extra drilling.`;
+  }else if(fSource.value==="key"){
+    fTheme.classList.add("hide");fFilter.classList.add("hide");
+    deck=mapKey();
+    $("#fModeHint").innerHTML=`A quick-recall deck of the ${KEYCARDS.length} most-tested numbers &amp; facts. Use <b>Core theory</b> for full coverage, or <b>All questions</b> to drill everything.`;
   }else{
     fTheme.classList.remove("hide");fFilter.classList.remove("hide");
+    $("#fModeHint").innerHTML=`Every official question as a flashcard — use the topic and filter menus to focus. Marking cards "known" also updates your progress in Learn.`;
     const tk=fTheme.value,f=fFilter.value;
     deck=Q.filter(q=>{
       if(tk!=="all"&&q.tk!==tk)return false;
@@ -778,7 +858,7 @@ function renderCard(){
   if(c.key){
     $("#fpts").classList.add("hide");
     $("#fcat").textContent=c.cat;
-    $("#fq").innerHTML=`<div class="q">${c.q}</div>`;
+    $("#fq").innerHTML=`${c.sign?'<div class="csign">'+(SIGNS[c.sign]||'')+'</div>':''}<div class="q">${c.q}</div>`;
     $("#fa").innerHTML=c.a;$("#fe").innerHTML=c.e||"";
     $("#fMarkKnown").style.visibility="hidden";$("#fMarkUnknown").style.visibility="hidden";
   }else{
