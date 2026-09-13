@@ -256,6 +256,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-p="plan">Plan</button>
       <button class="tab" role="tab" aria-selected="false" data-p="theory">Theory</button>
+      <button class="tab" role="tab" aria-selected="false" data-p="play">Playbook</button>
       <button class="tab" role="tab" aria-selected="false" data-p="learn">Learn</button>
       <button class="tab" role="tab" aria-selected="false" data-p="cards">Flashcards</button>
       <button class="tab" role="tab" aria-selected="false" data-p="quiz">Mock Exam</button>
@@ -285,6 +286,13 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
     <div class="acc" id="acc"></div>
   </section>
 
+  <!-- PLAYBOOK -->
+  <section class="panel" id="p-play">
+    <h2 class="sechead">Playbook — fast frameworks</h2>
+    <p class="lead">The tactical distillations, memory hooks and trap-busters — grouped for a final-day review. Tap a card to expand.</p>
+    <div class="acc" id="accPlay"></div>
+  </section>
+
   <!-- LEARN -->
   <section class="panel" id="p-learn">
     <h2 class="sechead">Learn the question bank</h2>
@@ -294,6 +302,8 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
       <select id="lChapter" aria-label="Chapter"></select>
       <select id="lFilter" aria-label="Filter">
         <option value="all">All questions</option>
+        <option value="kb">Klasse B focus (car only)</option>
+        <option value="calc">🧮 Calculations only</option>
         <option value="img">With image</option>
         <option value="vid">With video</option>
         <option value="p5">5-point (right of way)</option>
@@ -355,7 +365,9 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
       <p class="lead">A 30-question test drawn fresh from the real bank each time — with images, videos, single- and multiple-answer questions — scored on the exact German rules. Read carefully: many questions have more than one correct answer, and you must get all of them.</p>
       <div class="controls">
         <select id="qScope" aria-label="Exam scope">
-          <option value="all">Mixed — all topics (realistic)</option>
+          <option value="kb">Klasse B focus (car — recommended)</option>
+          <option value="all">All classes (full catalogue)</option>
+          <option value="calc">Focus: Calculations</option>
         </select>
       </div>
       <div class="startgrid">
@@ -411,6 +423,18 @@ const SEC_ICON={
   tech:`<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="30" fill="none" stroke="#5A616C" stroke-width="6"/><circle cx="50" cy="50" r="9" fill="#5A616C"/><g stroke="#5A616C" stroke-width="6" stroke-linecap="round"><line x1="50" y1="12" x2="50" y2="24"/><line x1="50" y1="76" x2="50" y2="88"/><line x1="12" y1="50" x2="24" y2="50"/><line x1="76" y1="50" x2="88" y2="50"/></g></svg>`,
   aid:`<svg viewBox="0 0 100 100"><rect x="12" y="12" width="76" height="76" rx="12" fill="#C5221F"/><rect x="44" y="26" width="12" height="48" fill="#fff"/><rect x="26" y="44" width="48" height="12" fill="#fff"/></svg>`
 };
+
+/* ---------- Klasse B & Calculations filters ---------- */
+const CALC_IDS=new Set(["1.1.09-006","1.2.03-001","1.2.03-002","1.2.03-102","1.2.03-105","1.2.03-106","1.2.12-129","1.2.12-130","1.2.12-131","1.2.12-133","1.4.40-101","2.1.02-002","2.1.07-109","2.1.07-208","2.2.03-006","2.2.03-007","2.2.03-008","2.2.03-009","2.2.03-010","2.2.03-011","2.2.03-012","2.2.03-015","2.2.03-016","2.2.04-004","2.2.04-205","2.2.04-305"]);
+const OTHERCLASS=/\b(motorcycle|motorbike|moped|scooter|pillion|helmet|truck|lorry|bus|coach|semi-?trailer|articulated|tachograph|air ?brake|hgv|goods vehicle|adr|combination vehicle|gross vehicle|trailer)\b/i;
+let KB_IDS=null;
+function isKlasseB(q){
+  if(KB_IDS) return q.id.startsWith("1.")||KB_IDS.has(q.id);
+  if(q.id.startsWith("1."))return true;
+  const p=q.id.slice(0,3);
+  if(p==="2.6"||p==="2.7"||p==="2.8")return false;
+  return !OTHERCLASS.test((q.q||"")+" "+(q.qd||""));
+}
 
 /* ---------- helpers ---------- */
 const $=(s,r=document)=>r.querySelector(s);
@@ -642,12 +666,23 @@ const STUDY=[
    <li><b>Rettungsgasse:</b> gap between the far-left lane and the rest, as soon as traffic slows.</li>
   </ul>`}
 ];
+const PLAYBOOK=[
+ {title:"Exam strategy & scoring",html:`<ul><li><b>30 questions</b>: 20 Grundstoff + 10 Klasse B Zusatzstoff. Each <b>2–5 error points</b>.</li><li><b>Pass = ≤ 10 error points.</b> But <b>two 5-point questions wrong = automatic fail</b> (right-of-way). Treat 5-pointers as non-negotiable.</li><li>You <b>can't return</b> to a skipped question.</li><li>Many questions have <b>more than one correct answer</b> — tick all correct, none wrong.</li><li>Your pool is ~<b>1,200</b> questions. Practise with <b>Klasse B focus</b> on.</li></ul><div class="callout warn"><b>Universal trap-buster:</b> the calm, defensive, "yield &amp; be ready" answer is almost always right; <i>accelerate / insist / horn-and-continue / swerve</i> — and <i>drive extra slowly for no reason</i> — are almost always wrong.</div>`},
+ {title:"Calculations — the one trick",html:`<p>Drop the last digit of your speed → <b>s</b> (50→5, 100→10).</p><div class="keyfact"><div class="kf"><div class="kfn">s×3</div><div class="kfl">reaction</div></div><div class="kf"><div class="kfn">s×s</div><div class="kfl">braking (normal)</div></div><div class="kf"><div class="kfn">s×3 + s×s</div><div class="kfl">stopping</div></div><div class="kf"><div class="kfn">(s×s)÷2</div><div class="kfl">emergency braking</div></div></div><ul><li><b>Emergency stopping = reaction + (braking ÷ 2)</b> — only braking halves; reaction never shrinks (50 → 15+12.5 = 27.5 m).</li><li><b>Double speed → reaction ×2, braking ×4</b> ("think twice, brake four times").</li><li>Following distance (car) = <b>half the speedometer, in metres</b> = s×5. Or the 2-second rule.</li><li>Braking distance grows with grip &amp; gravity: wet/ice, worn tyres, downhill, heavy load / brakeless trailer.</li></ul><div class="callout warn">50 → stop <b>40 m</b> (15+25); 100 → <b>130 m</b> (30+100). Alcohol clears ~<b>0.1‰/hour</b>. Narrow limited-sight road: stop within <b>half</b> what you can see.</div>`},
+ {title:"Right of way (5-point questions)",html:`<div class="callout crit">Miss two and you fail outright. Know the ladder.</div><p><b>Ladder — first match wins:</b> Police officer → Traffic lights → Signs → <b>right before left</b>. Use right-before-left only when nothing above applies.</p><p><b>Yield anyway, always:</b></p><ul><li><b>Turning left</b> → oncoming (straight/right) first.</li><li><b>Turning</b> into a road → pedestrians &amp; cyclists crossing it first.</li><li>From a <b>driveway / lowered kerb / calmed street / field track / after reversing</b> → no priority. Trams generally first.</li></ul><p><b>Diagram method:</b> priority road/sign/light first → among equals, right-before-left → left-turner among equals waits → 3-car deadlock: whoever leaves without crossing another's path.</p><div class="callout warn">Priority unclear → <b>wait, observe, eye contact</b>. Never "just go".</div>`},
+ {title:"Traffic signs — decode by shape & colour",html:`<div class="signrow"><figure>${typeof SIGNS!=='undefined'?SIGNS.slippery:''}<figcaption>Triangle = warn</figcaption></figure><figure>${typeof SIGNS!=='undefined'?SIGNS.speed:''}<figcaption>Red = forbid</figcaption></figure><figure>${typeof SIGNS!=='undefined'?SIGNS.oneway:''}<figcaption>Blue = command/info</figcaption></figure><figure>${typeof SIGNS!=='undefined'?SIGNS.priorityroad:''}<figcaption>Yellow diamond = priority</figcaption></figure></div><ul><li><b>Triangle, red border = danger</b> — "slow &amp; be ready", never "brake hard".</li><li><b>Round + red = prohibition</b>; <b>round + blue = mandatory</b>. Octagon = STOP; inverted triangle = give way.</li><li><b>Rectangle (blue) = information.</b> A sign applies <b>from where it stands, forward</b>; always read the <b>white panel underneath</b>.</li></ul><p><b>Limits end</b> at an end-sign, a new limit, the town-entry/exit sign, or when you turn off → revert to default <b>50 town / 100 rural / none Autobahn</b>.</p><div class="callout warn">Confusables: no-parking (1 slash) vs no-stopping (X) · end-of-limit vs end-of-all · give-way-to-oncoming (red) vs priority-over-oncoming (blue).</div>`},
+ {title:"Behaviour in traffic",html:`<p><b>Master instinct (§1):</b> caution &amp; consideration — don't endanger or obstruct. The considerate option wins.</p><ul><li><b>Turning:</b> signal early, <b>mirror + shoulder-check</b>; left → yield oncoming; right → cyclists on your right go straight = priority.</li><li><b>Reversing / U-turn / driveway:</b> no priority, slow, not at dangerous spots.</li><li><b>Overtaking:</b> view + space + faster + signal; never at crossings/poor visibility; <b>1.5 m</b> town / <b>2 m</b> outside past cyclists.</li><li><b>Level crossing:</b> ready to stop, <b>never stop on the tracks</b>, cross directly.</li><li><b>Lights:</b> green while turning still yields to pedestrians &amp; oncoming.</li><li><b>Buses/trams:</b> hazards on → <b>walking pace</b>; people crossing → wait; leaving-town-stop bus gets priority.</li><li><b>Police officer</b> overrides all: arms sideways = stop; arm raised = get ready; side profile = pass.</li><li><b>Blue light + siren</b> → make way, form Rettungsgasse (far-left lane vs rest). Yellow flashing = warning only.</li></ul>`},
+ {title:"Danger — hazard perception mindset",html:`<p><b>Defensive</b> (allow for others' mistakes) + <b>anticipatory</b> (read intentions early). Not over-timid — needless slow driving is also wrong.</p><ul><li><b>Reaction calibration:</b> hazard <b>not yet on road</b> → slow + be ready; hazard <b>entering</b> → brake hard, hold line, <b>don't swerve</b>.</li><li><b>Vulnerable users</b> (children near ball/bus/school, elderly, white-cane/yellow-armband) → expect the unpredictable.</li><li><b>Weather:</b> wet/ice/first-rain → slow, more distance, gentle; <b>aquaplaning → ease off</b>; <b>fog → stop within sight line</b>.</li><li><b>Darkness:</b> never drive faster than you can see; glare → look to the right edge.</li><li><b>Impairment</b> (alcohol/drugs/meds/fatigue) wrecks perception, reaction &amp; self-judgement → don't drive / rest.</li></ul>`},
+ {title:"Technology (the little that's on Klasse B)",html:`<ul><li><b>ABS</b> — brake full, keep steering. <b>ESP</b> — auto-brakes wheels to stop a skid.</li><li><b>Tyres</b> — 1.6 mm min tread; replace on cracks/bulges/uneven wear; winter tyres when wintry.</li><li><b>Warning lights</b> — red = stop now, yellow = check soon; dark exhaust smoke → get it checked.</li><li><b>Lights</b> — dipped in tunnels/poor light; rear fog light only under ~50 m visibility.</li><li><b>Loading</b> low &amp; forward, secured. <b>Breakdown</b>: hazards → vest → triangle (50/100/200 m) → behind barrier.</li><li><b>Physics</b> — centrifugal force grows with speed &amp; tighter radius → slow before the bend.</li></ul>`},
+ {title:"Environment — one instinct",html:`<p><b>Gentle, steady, maintained = correct.</b></p><ul><li><b>Low revs, high gear</b> — up early, down late.</li><li><b>Anticipate &amp; coast</b>; no needless acceleration/braking.</li><li><b>Engine off when waiting</b> (jams, level crossings, loading).</li><li><b>Maintain</b> — tyre pressure, servicing, low-viscosity oil; smoky exhaust → check it.</li><li><b>Carry less, drive less</b> — remove roof boxes, avoid short trips, drive off promptly after starting.</li></ul><div class="callout warn">Odd facts: one drop of oil pollutes <b>~600 L</b> of water · oil/batteries → recycling centre/workshop · don't top up after the nozzle clicks · Umweltzone exemptions: farm/forestry tractors &amp; ambulances on duty.</div>`}
+];
 $("#acc").innerHTML=STUDY.map((s,i)=>`
   <div class="card"><details ${i===0?'open':''}>
     <summary><span class="stag">${SEC_ICON[s.icon]||''}</span><h3>${s.title}</h3>
       <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></summary>
     <div class="body">${s.html}</div>
   </details></div>`).join("");
+document.getElementById("accPlay").innerHTML=PLAYBOOK.map((s,i)=>`<div class="card"><details ${i===0?"open":""}><summary><h3 style="flex:1">${s.title}</h3><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></summary><div class="body">${s.html}</div></details></div>`).join("");
 
 /* ============ LEARN ============ */
 const lTheme=$("#lTheme"),lChapter=$("#lChapter"),lFilter=$("#lFilter"),lSearch=$("#lSearch");
@@ -668,6 +703,8 @@ function learnFiltered(){
   return Q.filter(q=>{
     if(tk!=="all"&&q.tk!==tk)return false;
     if(ch!=="all"&&q.ch!==ch)return false;
+    if(f==="calc"&&!CALC_IDS.has(q.id))return false;
+    if(f==="kb"&&!isKlasseB(q))return false;
     if(f==="img"&&!q.img)return false;
     if(f==="vid"&&!q.vid)return false;
     if(f==="p5"&&q.p!==5)return false;
@@ -886,7 +923,7 @@ $("#fMarkUnknown").addEventListener("click",e=>{e.stopPropagation();const c=deck
 buildDeck();
 
 /* ============ MOCK EXAM ============ */
-$("#qScope").innerHTML=`<option value="all">Mixed — all topics (realistic)</option>`+
+$("#qScope").innerHTML=`<option value="kb">Klasse B focus (car — recommended)</option><option value="all">All classes (full catalogue)</option><option value="calc">Focus: Calculations</option>`+
   META.themes.filter(t=>t.n>=30).map(t=>`<option value="${t.tk}">Focus: ${esc(t.th)}</option>`).join("");
 let quiz=[],qi=0,sel=[],errPts=0,wrong5=0,answered=[];
 const CHECK=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`;
@@ -894,7 +931,11 @@ function showBest(){const b=lsGet("dt_bestErr");$("#bestScore").textContent=b!==
 showBest();
 function pickQuiz(){
   const scope=$("#qScope").value;
-  let pool=scope==="all"?Q:Q.filter(q=>q.tk===scope);
+  let pool;
+  if(scope==="all")pool=Q;
+  else if(scope==="calc")pool=Q.filter(q=>CALC_IDS.has(q.id));
+  else if(scope==="kb")pool=Q.filter(isKlasseB);
+  else pool=Q.filter(q=>q.tk===scope);
   // ensure some 5-pointers, then fill
   const five=shuffle(pool.filter(q=>q.p===5)).slice(0,7);
   const rest=shuffle(pool.filter(q=>q.p!==5));
