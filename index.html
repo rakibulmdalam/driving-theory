@@ -235,6 +235,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
         <option value="multi">Multiple answers</option>
         <option value="calc">🧮 Calculations</option>
         <option value="unknown">Not yet known</option>
+        <option value="wrong">⚠ Wrongly answered</option>
       </select>
       <input type="search" id="lSearch" class="grow" placeholder="Search question text…">
     </div>
@@ -244,6 +245,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
       <button class="iconbtn" id="lNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
       <button class="chip" id="lShuffle">Shuffle</button>
       <span class="count-pill" id="lCount"></span>
+      <button class="chip" id="lReviewWrong">⚠ Review mistakes</button>
     </div>
     <div id="learnCard"></div>
   </section>
@@ -263,6 +265,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
         <option value="vid">With video</option>
         <option value="p5">5-point (right of way)</option>
         <option value="unknown">Not yet known</option>
+        <option value="wrong">⚠ Wrongly answered</option>
       </select>
       <button class="chip" id="fShuffle">Shuffle</button>
       <span class="count-pill" id="fDeckCount"></span>
@@ -297,6 +300,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
         <div class="stat"><div class="sn tnum">30</div><div class="sl">questions</div></div>
         <div class="stat"><div class="sn tnum">≤10</div><div class="sl">error points to pass</div></div>
         <div class="stat"><div class="sn tnum" id="bestScore">—</div><div class="sl">your best</div></div>
+        <div class="stat"><div class="sn tnum" id="reviewCount">0</div><div class="sl">to review</div></div>
       </div>
       <button class="btn big" id="startBtn">Start mock exam →</button>
     </div>
@@ -375,7 +379,810 @@ const DATA=window.DT_DATA;
 if(!DATA){$("#dataBad").classList.remove("hide");$("#app").classList.add("hide");}
 if(DATA){
 
-/* ---------- Klasse B base set (non-B hidden everywhere, incl. counts) ---------- */
+/* ---------- data corrections (known source defects: dropped negations, truncated
+   option fragments from lost shared lead-ins, mistranslations, and 8 questions whose
+   per-option images were lost in scraping — rewritten as accurately-described text
+   options below, citing the official StVO sign name/number, rather than hidden). ---------- */
+const FIXES={
+ "1.1.02-138-M": {
+  "o": {
+   "B.": {
+    "t": "I ready myself for an emergency braking manoeuvre"
+   }
+  }
+ },
+ "1.1.02-117": {
+  "q": {
+   "t": "Why must you slow down here?"
+  }
+ },
+ "1.1.07-162-M": {
+  "o": {
+   "C.": {
+    "t": "- drivers give me priority when I pull out of the parking space"
+   }
+  }
+ },
+ "1.2.06-006": {
+  "o": {
+   "A.": {
+    "t": "- Continue driving if it is clear that there is no oncoming traffic",
+    "d": "- Weiterfahren, wenn zu erkennen ist, dass kein Gegenverkehr kommt"
+   },
+   "B.": {
+    "t": "- Continue driving so as not to hold up possible oncoming traffic",
+    "d": "- Weiterfahren, um möglichen Gegenverkehr nicht aufzuhalten"
+   },
+   "C.": {
+    "t": "- Continue driving, because any possible oncoming traffic must already be waiting",
+    "d": "- Weiterfahren, da möglicher Gegenverkehr bereits warten muss"
+   }
+  }
+ },
+ "1.2.12-124": {
+  "q": {
+   "t": "Which vehicles may stop in the second row on the roadway?"
+  }
+ },
+ "1.2.26-005": {
+  "q": {
+   "t": "What applies immediately before and on zebra crossings? It is not permitted to",
+   "d": "Was gilt unmittelbar vor und auf Zebrastreifen? Es darf nicht"
+  },
+  "o": {
+   "A.": {
+    "t": "- be overtaken"
+   },
+   "B.": {
+    "t": "- be stopped"
+   },
+   "C.": {
+    "t": "- be parked"
+   }
+  }
+ },
+ "1.2.19-113": {
+  "q": {
+   "t": "What does this traffic sign combination indicate? A level crossing,",
+   "d": "Worauf weist diese Verkehrszeichenkombination hin? Auf einen Bahnübergang,"
+  }
+ },
+ "1.2.22-107": {
+  "o": {
+   "B.": {
+    "t": "- not slide even under emergency braking"
+   }
+  }
+ },
+ "1.3.01-055-M": {
+  "q": {
+   "t": "What is the right course of action? I proceed",
+   "d": "Wie verhalten Sie sich richtig? Ich fahre"
+  }
+ },
+ "1.3.01-056-M": {
+  "q": {
+   "t": "What is the right course of action? I proceed",
+   "d": "Wie verhalten Sie sich richtig? Ich fahre"
+  }
+ },
+ "1.2.37-104": {
+  "q": {
+   "t": "What is the right behaviour now? I set off",
+   "d": "Wie verhalten Sie sich jetzt richtig? Ich fahre"
+  },
+  "o": {
+   "A.": {
+    "t": "- now"
+   },
+   "B.": {
+    "t": "- only when the lorry drives on"
+   },
+   "C.": {
+    "t": "- only when my traffic light shows \"green\""
+   }
+  }
+ },
+ "1.2.26-008-M": {
+  "q": {
+   "t": "What is correct in this situation? I may",
+   "d": "Was gilt in dieser Situation? Ich darf [den Radfahrer]"
+  }
+ },
+ "1.2.17-101": {
+  "o": {
+   "C.": {
+    "t": "Incorrect loading"
+   }
+  }
+ },
+ "1.4.40-106": {
+  "o": {
+   "B.": {
+    "t": "An uphill slope 800 m ahead"
+   }
+  }
+ },
+ "1.4.41-018": {
+  "q": {
+   "t": "What vehicles may enter a bicycle street that has this sign?"
+  }
+ },
+ "1.4.41-136": {
+  "o": {
+   "C.": {
+    "t": "Previous route-section prohibitions"
+   }
+  }
+ },
+ "1.4.41-168": {
+  "q": {
+   "t": "As a resident, you want to drive into a bicycle street that has this sign. What must you be aware of when doing so?"
+  }
+ },
+ "1.4.42-106": {
+  "o": {
+   "B.": {
+    "t": "A zonal no-stopping restriction"
+   },
+   "C.": {
+    "t": "Previous route-section prohibitions"
+   }
+  }
+ },
+ "1.4.42-129": {
+  "q": {
+   "t": "You are driving with daytime running lights into a lit tunnel marked like this. What do you do?"
+  }
+ },
+ "1.4.42-133": {
+  "o": {
+   "A.": {
+    "t": "- the end of a traffic-calming zone",
+    "d": "- das Ende eines verkehrsberuhigten Bereichs"
+   }
+  }
+ },
+ "1.4.42-135": {
+  "o": {
+   "B.": {
+    "t": "Underground line no. 3"
+   }
+  }
+ },
+ "1.4.42-137": {
+  "o": {
+   "C.": {
+    "t": "- also use the protective lane for parking"
+   }
+  }
+ },
+ "1.5.01-015": {
+  "o": {
+   "A.": {
+    "t": "- if a lot of smoke is coming from the exhaust, I should have the motor vehicle checked"
+   },
+   "B.": {
+    "t": "- when waiting for prolonged periods, I should switch off the engine"
+   },
+   "C.": {
+    "t": "- when driving, I should use the upper engine speed range where possible"
+   }
+  }
+ },
+ "2.1.03-114": {
+  "o": {
+   "C.": {
+    "t": "Cross longitudinal markings at an acute angle"
+   }
+  }
+ },
+ "2.1.04-102": {
+  "o": {
+   "B.": {
+    "t": "Streaks on the windscreen impair your visibility"
+   }
+  }
+ },
+ "2.1.07-004-B": {
+  "o": {
+   "B.": {
+    "t": "Overtake the other vehicles in the left-hand lane since the traffic light is \"green\""
+   }
+  }
+ },
+ "2.1.11-116": {
+  "o": {
+   "A.": {
+    "t": "- not to exceed the speed limit",
+    "d": "- die Geschwindigkeit nicht zu überschreiten"
+   },
+   "B.": {
+    "t": "- not to drive through traffic lights on red",
+    "d": "- die Ampeln bei Rot nicht zu überfahren"
+   },
+   "C.": {
+    "t": "- not to fall below the safety distances",
+    "d": "- die Sicherheitsabstände nicht zu unterschreiten"
+   }
+  }
+ },
+ "2.1.11-130": {
+  "o": {
+   "A.": {
+    "t": "- I concentrate on my driving",
+    "d": "- Ich konzentriere mich auf meine Fahrtätigkeit"
+   },
+   "B.": {
+    "t": "- I concentrate on the discussion",
+    "d": "- Ich konzentriere mich auf die Diskussion"
+   }
+  }
+ },
+ "2.1.11-011": {
+  "o": {
+   "A.": {
+    "t": "- I drive on to the next stopping place, in order to calm myself down there",
+    "d": "- Ich fahre zur nächsten Haltemöglichkeit weiter, um mich dort zu beruhigen"
+   },
+   "B.": {
+    "t": "- I drive on to my destination, so that I can recover my composure there in peace",
+    "d": "- Ich fahre zu meinem Fahrziel weiter, um mich dort in Ruhe zu erholen"
+   }
+  }
+ },
+ "2.2.03-015": {
+  "q": {
+   "t": "What is the rule of thumb for calculating the braking distance for emergency braking on a dry, level and asphalted roadway?"
+  }
+ },
+ "2.2.03-016": {
+  "q": {
+   "t": "You are travelling at 40 km/h. The braking distance for emergency braking is approximately 8 metres. How long is the braking distance at 50 km/h under otherwise identical conditions?"
+  }
+ },
+ "2.2.03-024": {
+  "o": {
+   "A.": {
+    "t": "- within the range of my dipped headlights",
+    "d": "- Innerhalb der Reichweite des Abblendlichts"
+   },
+   "B.": {
+    "t": "- within the range of my main beam headlights",
+    "d": "- Innerhalb der Reichweite des Fernlichts"
+   },
+   "C.": {
+    "t": "- within the range of my side lights",
+    "d": "- Innerhalb der Reichweite des Standlichts"
+   }
+  }
+ },
+ "2.2.03-303": {
+  "o": {
+   "A.": {
+    "t": "- within the range of my dipped headlights",
+    "d": "- Innerhalb der Reichweite des Abblendlichts"
+   },
+   "B.": {
+    "t": "- within the range of my main beam headlights",
+    "d": "- Innerhalb der Reichweite des Fernlichts"
+   },
+   "C.": {
+    "t": "- within the range of my side lights",
+    "d": "- Innerhalb der Reichweite des Standlichts"
+   }
+  }
+ },
+ "2.2.04-207-M": {
+  "o": {
+   "A.": {
+    "t": "- The distance to the truck is appropriate because the [yellow] car can pull back into lane in front of me",
+    "d": "- Der Abstand zum Lkw ist angemessen, weil der [gelbe] Pkw vor mir einscheren kann"
+   },
+   "B.": {
+    "t": "- The distance to the [yellow] car must be re-established once it has pulled back into lane",
+    "d": "- Der Abstand zum [gelben] Pkw muss nach dessen Einscheren wiederhergestellt werden"
+   },
+   "C.": {
+    "t": "- The distance to the truck is too large, because it exceeds the length of my bus many times over",
+    "d": "- Der Abstand zum Lkw ist zu groß, weil er die Länge meines Busses um ein Vielfaches überschreitet"
+   }
+  }
+ },
+ "2.2.04-304": {
+  "q": {
+   "t": "A road outside of a built-up area has just one lane in the direction of travel. Which trucks have to maintain such a great distance from the vehicle ahead that an overtaking vehicle can pull back into lane? Trucks with a permissible total mass of more than ___ t",
+   "d": "Auf einer Straße außerorts ist in Fahrtrichtung nur ein Fahrstreifen vorhanden. Welche Lkws müssen hier einen so großen Abstand zum vorausfahrenden Fahrzeug einhalten, dass ein überholendes Fahrzeug einscheren kann? Lkws über ___ t zulässiger Gesamtmasse"
+  }
+ },
+ "2.2.04-306": {
+  "o": {
+   "C.": {
+    "t": "Motor vehicles with a gross vehicle weight rating of up to 3.5 t"
+   }
+  }
+ },
+ "2.2.05-017": {
+  "o": {
+   "A.": {
+    "d": "- Ich überhole die Straßenbahn nicht"
+   },
+   "B.": {
+    "d": "- Ich überhole die Straßenbahn rechts"
+   },
+   "C.": {
+    "d": "- Ich überhole die Straßenbahn links"
+   }
+  }
+ },
+ "2.2.07-006": {
+  "o": {
+   "C.": {
+    "t": "I immediately change lanes to the left, into the middle lane"
+   }
+  }
+ },
+ "2.2.07-002": {
+  "q": {
+   "t": "Which motor vehicles may freely choose their lane inside built-up areas? Motor vehicles with a permissible total mass of up to ___ t",
+   "d": "Für welche Kraftfahrzeuge gilt innerorts die freie Fahrstreifenwahl? Kraftfahrzeuge bis zu einer zulässigen Gesamtmasse von ___ t"
+  }
+ },
+ "2.2.07-201-M": {
+  "o": {
+   "A.": {
+    "t": "- I may only use the left lane to turn left",
+    "d": "- Ich darf den linken Fahrstreifen nur zum Linksabbiegen benutzen"
+   },
+   "B.": {
+    "t": "- I may only use the left lane to overtake",
+    "d": "- Ich darf den linken Fahrstreifen nur zum Überholen benutzen"
+   },
+   "C.": {
+    "t": "- I may only use the left lane if there is a traffic jam",
+    "d": "- Ich darf den linken Fahrstreifen nur bei Stau benutzen"
+   }
+  }
+ },
+ "2.2.09-003-M": {
+  "o": {
+   "A.": {
+    "t": "- I turn off only once the [red] vehicle has overtaken me",
+    "d": "- Ich biege erst ab, nachdem mich das [rote] Fahrzeug überholt hat"
+   },
+   "B.": {
+    "t": "- I turn off now in order to clear the carriageway",
+    "d": "- Ich biege jetzt ab, um die Fahrbahn frei zu machen"
+   },
+   "C.": {
+    "t": "- I turn off now so that following vehicles are not unsettled by my hesitation",
+    "d": "- Ich biege jetzt ab, um die Nachfolgenden durch mein Zögern nicht zu verunsichern"
+   }
+  }
+ },
+ "2.2.09-006-M": {
+  "o": {
+   "A.": {
+    "t": "- I turn off only after [the red car] has overtaken me",
+    "d": "- Ich biege erst ab, nachdem [der rote Pkw] mich überholt hat"
+   },
+   "B.": {
+    "t": "- I turn off now, so as not to impede the truck behind me",
+    "d": "- Ich biege jetzt ab, um den nachfolgenden Lkw nicht zu behindern"
+   },
+   "C.": {
+    "t": "- I turn off now, so that my hesitation does not unsettle those behind me",
+    "d": "- Ich biege jetzt ab, um die Nachfolgenden durch mein Zögern nicht zu verunsichern"
+   }
+  }
+ },
+ "2.2.13-101": {
+  "q": {
+   "t": "For what purpose may you stop at a parking meter that is not running?"
+  }
+ },
+ "2.2.14-108-M": {
+  "q": {
+   "t": "You have stopped in a parking strip and now want to exit your vehicle. What must you do in this situation? I check the traffic behind me ...",
+   "d": "Sie haben auf einem Parkstreifen angehalten und möchten aussteigen. Wie müssen Sie sich in dieser Situation verhalten? Ich beobachte den nachfolgenden Verkehr ..."
+  }
+ },
+ "2.2.14-110": {
+  "q": {
+   "t": "You want to let a child out of your car. What should you be aware of when doing so? The child should ...",
+   "d": "Sie möchten ein Kind aus Ihrem Pkw aussteigen lassen. Was sollten Sie dabei beachten? Das Kind sollte ..."
+  }
+ },
+ "2.2.15-105": {
+  "q": {
+   "t": "A car with power steering has broken down with engine damage and must be towed away. What is correct? The steering ...",
+   "d": "Ein Pkw mit Servolenkung ist mit Motorschaden liegen geblieben und soll abgeschleppt werden. Was ist richtig? Die Lenkung ..."
+  },
+  "o": {
+   "A.": {
+    "t": "- is considerably harder to operate"
+   }
+  }
+ },
+ "2.2.16-101": {
+  "q": {
+   "t": "When must you switch on the hazard lights on your vehicle? When it ...",
+   "d": "Wann müssen Sie an Ihrem Kraftfahrzeug das Warnblinklicht einschalten? Wenn es ..."
+  }
+ },
+ "2.2.17-010": {
+  "q": {
+   "t": "The rear lighting devices of your motor vehicle are covered. What has to be done? A light board with all rear lighting devices ...",
+   "d": "Die hinteren Beleuchtungseinrichtungen Ihres Kraftfahrzeugs sind verdeckt. Was ist zu tun? Ein Leuchtenträger mit allen hinteren Beleuchtungseinrichtungen ist ..."
+  }
+ },
+ "2.2.17-011": {
+  "q": {
+   "t": "Depending on the motor vehicle, how can you tell if the main beam is switched on? By the ...",
+   "d": "Woran können Sie je nach Kraftfahrzeug erkennen, ob das Fernlicht eingeschaltet ist? An der ..."
+  }
+ },
+ "2.2.17-013": {
+  "q": {
+   "t": "How can you tell that your main beam lights are switched on? By the ...",
+   "d": "Woran können Sie erkennen, ob das Fernlicht eingeschaltet ist? An der ..."
+  }
+ },
+ "2.2.17-101": {
+  "o": {
+   "A.": {
+    "t": "- in fog or falling snow"
+   },
+   "B.": {
+    "t": "- in rain"
+   },
+   "C.": {
+    "t": "- with ice on the windscreen"
+   }
+  }
+ },
+ "2.2.17-109": {
+  "o": {
+   "A.": {
+    "t": "- in fog or falling snow"
+   },
+   "B.": {
+    "t": "- in rain"
+   },
+   "C.": {
+    "t": "- with a misted windscreen"
+   }
+  }
+ },
+ "2.2.17-111": {
+  "q": {
+   "t": "During twilight or the hours of darkness, in which cases do you need to switch on only the side lights (parking lights)?"
+  }
+ },
+ "2.2.17-406": {
+  "q": {
+   "t": "When must attachments have additional lighting devices? If the attachment ...",
+   "d": "Wann müssen Anbaugeräte zusätzliche Beleuchtungseinrichtungen haben? Wenn das Anbaugerät ..."
+  },
+  "o": {
+   "C.": {
+    "t": "- projects more than 1 m to the rear beyond the vehicle's rear reflectors"
+   }
+  }
+ },
+ "2.2.18-013": {
+  "q": {
+   "t": "What must you do now? I drive ...",
+   "d": "Wie müssen Sie sich jetzt verhalten? Ich fahre ..."
+  }
+ },
+ "2.2.18-019": {
+  "q": {
+   "t": "What must you do if you find yourself in a traffic jam on motorways and on clearways with two lanes travelling in the same direction? I must ...",
+   "d": "Wie müssen Sie sich in einem Stau auf Autobahnen und auf Kraftfahrstraßen mit zwei Fahrstreifen für eine Richtung verhalten? Ich muss auf dem ..."
+  }
+ },
+ "2.2.18-024-M": {
+  "q": {
+   "t": "What can you expect now? The truck in front of me will ...",
+   "d": "Womit müssen Sie jetzt rechnen? Der Lkw vor mir wird ..."
+  }
+ },
+ "2.2.18-218": {
+  "q": {
+   "t": "From what permissible total mass are motor vehicles or vehicle combinations used in road haulage subject to a toll charge?",
+   "d": "Ab welcher zulässigen Gesamtmasse unterliegen Kraftfahrzeuge oder Fahrzeugkombinationen, die im Güterkraftverkehr verwendet werden, der Mautpflicht?"
+  }
+ },
+ "2.2.21-113": {
+  "q": {
+   "t": "What does this warning sign mean? On this seat ...",
+   "d": "Was bedeutet dieser Warnhinweis? Auf diesem Sitz ..."
+  }
+ },
+ "2.2.21-121": {
+  "q": {
+   "t": "How can you prevent a child from opening a rear door while the vehicle is moving? I activate ...",
+   "d": "Wie können Sie verhindern, dass ein Kind während der Fahrt eine hintere Tür öffnet? Ich aktiviere ..."
+  }
+ },
+ "2.2.22-010": {
+  "q": {
+   "t": "Carrying a rucksack while riding can affect the handling of your two-wheeler. What can the consequences be?"
+  }
+ },
+ "2.2.22-118": {
+  "q": {
+   "t": "What must you ensure when transporting long steel pipes? The pipes must ...",
+   "d": "Was ist beim Transport von langen Stahlrohren zu beachten? Die Rohre müssen ..."
+  }
+ },
+ "2.2.22-122": {
+  "q": {
+   "t": "What must you be aware of if you want to transport a load? The load ...",
+   "d": "Was haben Sie zu beachten, wenn Sie Ladung transportieren möchten? Die Ladung ..."
+  }
+ },
+ "2.2.22-130": {
+  "q": {
+   "t": "What should you anticipate when you transport a load on the roof of your car? The vehicle will ...",
+   "d": "Worauf sollten Sie sich einstellen, wenn Sie auf dem Dach Ihres Pkws Ladung befördern? Das Fahrzeug wird ..."
+  }
+ },
+ "2.2.22-131": {
+  "q": {
+   "t": "You are transporting furniture in a van. While taking a break you notice that a lashing strap is badly damaged. Under what condition may you continue driving? If I ...",
+   "d": "Sie transportieren mit einem Kleintransporter Möbel. Während einer Pause stellen Sie fest, dass ein Zurrgurt stark beschädigt ist. Unter welcher Bedingung dürfen Sie weiterfahren? Wenn ich ..."
+  }
+ },
+ "2.2.23-016": {
+  "q": {
+   "t": "Why should you regularly apply the brakes with force at standstill? To check whether ...",
+   "d": "Warum sollen Sie die Bremsen im Stand regelmäßig kräftig betätigen? Um zu prüfen, ob ..."
+  }
+ },
+ "2.2.23-021": {
+  "q": {
+   "t": "How must you protect yourself from serious head injuries? By wearing ...",
+   "d": "Wie müssen Sie sich gegen Kopfverletzungen schützen? Durch das Tragen ..."
+  }
+ },
+ "2.2.23-027": {
+  "q": {
+   "t": "What is required when the motor liability insurance of your vehicle has expired? The vehicle ...",
+   "d": "Was ist vorgeschrieben, wenn die Haftpflichtversicherung Ihres Fahrzeugs erloschen ist? Das Fahrzeug ..."
+  }
+ },
+ "2.2.23-038": {
+  "q": {
+   "t": "As a two-wheeler rider, what must you check before commencing your journey?"
+  }
+ },
+ "2.2.23-101": {
+  "o": {
+   "C.": {
+    "t": "When vehicles have canvass covers, the load need not be specially secured"
+   }
+  }
+ },
+ "2.2.23-122": {
+  "o": {
+   "A.": {
+    "t": "- the telephone is not held in my hand for this purpose"
+   }
+  }
+ },
+ "2.2.23-128": {
+  "q": {
+   "t": "You want to take a trip in winter weather conditions. What do you need to bear in mind? Snow and ice on the vehicle could ...",
+   "d": "Sie möchten bei winterlichen Witterungsverhältnissen eine Fahrt antreten. Was müssen Sie beachten? Schnee und Eis auf dem Fahrzeug können ..."
+  }
+ },
+ "2.2.23-412": {
+  "o": {
+   "C.": {
+    "t": "The pedals of the single-wheel brakes must be unlocked"
+   }
+  }
+ },
+ "2.2.29-203": {
+  "q": {
+   "t": "A 2.50 m wide motor vehicle is loaded with bulky goods projecting laterally 50 cm beyond the side and rear lights. What must be remembered when transporting the load?"
+  }
+ },
+ "2.2.30-102": {
+  "o": {
+   "C.": {
+    "t": "Tractors with trailers"
+   }
+  }
+ },
+ "2.2.34-103": {
+  "q": {
+   "t": "What function does the eCall system fulfil in the event of a serious accident? It transmits ...",
+   "d": "Welche Funktion erfüllt das eCall-System im Falle eines schweren Unfalls? Es übermittelt ..."
+  }
+ },
+ "2.2.37-007": {
+  "o": {
+   "B.": {
+    "t": "Stopping is prohibited on lanes with permanently illuminated signs"
+   }
+  }
+ },
+ "2.2.37-008": {
+  "q": {
+   "t": "What do these permanently illuminated signs mean? Vehicles in lane ...",
+   "d": "Was bedeuten diese Dauerlichtzeichen? Fahrzeuge auf Fahrstreifen ..."
+  }
+ },
+ "2.4.41-002": {
+  "q": {
+   "t": "To what does the \"12 t\" refer on this traffic sign? To the permissible total mass ...",
+   "d": "Worauf bezieht sich bei diesem Verkehrszeichen die Angabe „12 t“? Auf die zulässige Gesamtmasse ..."
+  }
+ },
+ "2.4.41-401": {
+  "o": {
+   "A.": {
+    "t": "Tractors with a type-specific maximum speed of up to 25 km/h"
+   },
+   "B.": {
+    "t": "Motor vehicles with trailers with a maximum permissible speed of up to 25 km/h"
+   }
+  }
+ },
+ "2.5.01-001": {
+  "o": {
+   "C.": {
+    "t": "Fit fairings"
+   }
+  }
+ },
+ "2.5.01-011": {
+  "q": {
+   "t": "What is caused by driving with winter tyres during the summer months? It increases ...",
+   "d": "Was hat das Fahren mit Winterreifen in den Sommermonaten zur Folge? Es erhöht sich ..."
+  }
+ },
+ "2.5.01-129": {
+  "q": {
+   "t": "Your car is equipped with an automatic start-stop system. What is the environmental protection benefit from using this vehicle system? It reduces ...",
+   "d": "Ihr Pkw ist mit einer Start-Stopp-Automatik ausgerüstet. Welchen Vorteil bietet die Nutzung dieses Fahrzeugsystems für den Umweltschutz? Es verringert ..."
+  }
+ },
+ "1.4.40-013": {
+  "o": {
+   "A.": {
+    "t": "Sign 121 'Einseitig verengte Fahrbahn (von rechts)' — a warning triangle showing the roadway narrowing sharply from one side",
+    "d": "Verkehrszeichen 121: 'Einseitig verengte Fahrbahn (von rechts)' – Warndreieck, die Fahrbahn verengt sich einseitig von rechts"
+   },
+   "B.": {
+    "t": "Sign 208 'Vorrang des Gegenverkehrs' — a red-bordered circle with a red arrow (you) pointing down and a black arrow (oncoming traffic) pointing up: oncoming traffic has priority",
+    "d": "Verkehrszeichen 208: 'Vorrang des Gegenverkehrs' – roter Kreis mit rotem Pfeil (Sie) nach unten und schwarzem Pfeil (Gegenverkehr) nach oben: der Gegenverkehr hat Vorrang"
+   },
+   "C.": {
+    "t": "Sign 125 'Gegenverkehr' — a warning triangle with two arrows pointing in opposite directions; it only warns that traffic comes from both directions and does not by itself create a duty to give way",
+    "d": "Verkehrszeichen 125: 'Gegenverkehr' – Warndreieck mit zwei gegenläufigen Pfeilen; weist nur auf Gegenverkehr hin und begründet für sich allein keine Wartepflicht"
+   }
+  }
+ },
+ "1.4.41-031": {
+  "o": {
+   "A.": {
+    "t": "Sign 306 'Ende der Vorfahrtstraße' (End of priority road) — a white circle with a black diagonal bar through a small priority-road symbol",
+    "d": "Verkehrszeichen 306: 'Ende der Vorfahrtstraße' – weißer Kreis mit schwarzem Balken durch ein kleines Vorfahrtsstraßen-Symbol"
+   },
+   "B.": {
+    "t": "Sign 205 'Vorfahrt gewähren' (Give way / Yield) — an upside-down white triangle with a red border",
+    "d": "Verkehrszeichen 205: 'Vorfahrt gewähren' – auf der Spitze stehendes weißes Dreieck mit rotem Rand"
+   },
+   "C.": {
+    "t": "Sign 301 'Vorfahrt' — a warning triangle showing a vertical bar crossing a horizontal line: it means your priority continues through the next junction, the opposite of what's asked",
+    "d": "Verkehrszeichen 301: 'Vorfahrt' – Dreieck mit senkrechtem Balken über waagrechter Linie: zeigt, dass Ihre Vorfahrt an der nächsten Kreuzung weiter gilt – das Gegenteil der gefragten Situation"
+   }
+  }
+ },
+ "1.4.41-032": {
+  "o": {
+   "A.": {
+    "t": "Sign 206 'Halt. Vorfahrt gewähren.' (STOP) — a red octagon with white 'STOP' lettering; you must always come to a full stop",
+    "d": "Verkehrszeichen 206: 'Halt. Vorfahrt gewähren.' – rotes Achteck mit weißer Aufschrift 'STOP'; Sie müssen immer vollständig anhalten"
+   },
+   "B.": {
+    "t": "The 'green arrow' sign (§ 37 StVO) — a small black square with a green arrow mounted next to a red light: it lets you turn right on red, but only after coming to a full stop first",
+    "d": "Der 'Grünpfeil' (§ 37 StVO) – kleines schwarzes Schild mit grünem Pfeil neben der roten Ampel; erlaubt Rechtsabbiegen bei Rot, aber erst nach vollständigem Halt"
+   },
+   "C.": {
+    "t": "Sign 301 'Vorfahrt' — the priority-road warning triangle; unrelated to any requirement to stop",
+    "d": "Verkehrszeichen 301: 'Vorfahrt' – das Vorfahrts-Warndreieck; hat nichts mit einer Haltepflicht zu tun"
+   }
+  }
+ },
+ "1.4.41-033": {
+  "o": {
+   "A.": {
+    "t": "Sign 242.1 'Fußgängerzone' (Pedestrian zone begins) — a blue square showing an adult and child walking",
+    "d": "Verkehrszeichen 242.1: 'Fußgängerzone' – blaues Schild mit gehenden Personen"
+   },
+   "B.": {
+    "t": "Sign 267 'Verbot der Einfahrt' (No entry) — a red circle with a single white horizontal bar",
+    "d": "Verkehrszeichen 267: 'Verbot der Einfahrt' – roter Kreis mit einem weißen Balken"
+   },
+   "C.": {
+    "t": "Sign 208 'Vorrang des Gegenverkehrs' (Priority of oncoming traffic) — this only regulates right of way at a narrow passage, it does not forbid entry",
+    "d": "Verkehrszeichen 208: 'Vorrang des Gegenverkehrs' – regelt nur den Vorrang an einer Engstelle, verbietet keine Einfahrt"
+   }
+  }
+ },
+ "1.4.41-174": {
+  "o": {
+   "A.": {
+    "t": "Sign 272 'Verbot des Wendens' (No U-turns) — a red circle with a U-shaped arrow crossed out",
+    "d": "Verkehrszeichen 272: 'Verbot des Wendens' – roter Kreis mit durchgestrichenem Wendepfeil"
+   },
+   "B.": {
+    "t": "Sign 330.1 'Autobahn' — a blue square with a stylised motorway bridge; U-turns are always prohibited on the Autobahn",
+    "d": "Verkehrszeichen 330.1: 'Autobahn' – blaues Schild mit stilisierter Autobahnbrücke; auf der Autobahn ist Wenden grundsätzlich verboten"
+   },
+   "C.": {
+    "t": "Sign 327 'Tunnel' — a blue square with a black tunnel-entrance symbol; turning around inside a tunnel is always prohibited",
+    "d": "Verkehrszeichen 327: 'Tunnel' – blaues Schild mit schwarzem Tunnelsymbol; im Tunnel ist Wenden grundsätzlich verboten"
+   }
+  }
+ },
+ "1.4.41-175": {
+  "o": {
+   "A.": {
+    "t": "Sign 274-60 'Zulässige Höchstgeschwindigkeit' (Speed limit) — a white circle with a red border and the black number '60'",
+    "d": "Verkehrszeichen 274-60: 'Zulässige Höchstgeschwindigkeit' – weißer Kreis mit rotem Rand und schwarzer '60'"
+   },
+   "B.": {
+    "t": "Sign 278-60 'Ende der zulässigen Höchstgeschwindigkeit' (End of the speed limit) — a white circle with a crossed-out '60' and diagonal stripes",
+    "d": "Verkehrszeichen 278-60: 'Ende der zulässigen Höchstgeschwindigkeit' – weißer Kreis mit durchgestrichener '60'"
+   },
+   "C.": {
+    "t": "Sign 275-60 'Vorgeschriebene Mindestgeschwindigkeit' (Minimum speed) — a blue circle with a white '60'; this is a minimum, not a maximum",
+    "d": "Verkehrszeichen 275-60: 'Vorgeschriebene Mindestgeschwindigkeit' – blauer Kreis mit weißer '60'; das ist eine Mindest-, keine Höchstgeschwindigkeit"
+   }
+  }
+ },
+ "1.4.42-011": {
+  "o": {
+   "A.": {
+    "t": "Sign 325.1 'Verkehrsberuhigter Bereich' (Traffic-calmed area begins) — a blue square showing a house, a car, and a person with a child",
+    "d": "Verkehrszeichen 325.1: 'Verkehrsberuhigter Bereich' – blaues Schild mit Haus, Auto und Person mit Kind"
+   },
+   "B.": {
+    "t": "Signs 205 + 215 combined, 'Vorfahrt gewähren' and 'Kreisverkehr' (Give way + Roundabout) — unrelated to a walking-speed requirement",
+    "d": "Verkehrszeichen 205 + 215: 'Vorfahrt gewähren' und 'Kreisverkehr' – hat nichts mit Schrittgeschwindigkeit zu tun"
+   },
+   "C.": {
+    "t": "Sign 114 'Schleuder- oder Rutschgefahr' (Slippery road) — a warning triangle showing a skidding car",
+    "d": "Verkehrszeichen 114: 'Schleuder- oder Rutschgefahr' – Warndreieck mit schleudernder werdendem Auto"
+   }
+  }
+ },
+ "1.4.42-012": {
+  "o": {
+   "A.": {
+    "t": "Sign 301 'Vorfahrt' — a warning triangle showing a vertical bar crossing a horizontal line: you have priority at the next junction only",
+    "d": "Verkehrszeichen 301: 'Vorfahrt' – Dreieck mit senkrechtem Balken über waagrechter Linie: Vorfahrt nur an der nächsten Kreuzung"
+   },
+   "B.": {
+    "t": "Sign 102 'Kreuzung oder Einmündung' — a plain warning triangle with a black cross: an ordinary crossroads with no priority indicated",
+    "d": "Verkehrszeichen 102: 'Kreuzung oder Einmündung' – einfaches Warndreieck mit schwarzem Kreuz, keine Vorfahrtregelung"
+   },
+   "C.": {
+    "t": "Sign 308 'Vorrang vor dem Gegenverkehr' (Priority over oncoming traffic) — a blue square with a white arrow up and a red arrow down; only relevant at a narrow passage, not a junction",
+    "d": "Verkehrszeichen 308: 'Vorrang vor dem Gegenverkehr' – blaues Schild mit weißem Pfeil nach oben und rotem Pfeil nach unten; gilt nur an Engstellen, nicht an Kreuzungen"
+   }
+  }
+ }
+};
+DATA.questions.forEach(q=>{const f=FIXES[q.id];if(!f)return;if(f.q){if(f.q.t!=null)q.q=f.q.t;if(f.q.d!=null)q.qd=f.q.d;}if(f.o&&q.o)q.o.forEach(o=>{const x=f.o[o.l];if(x){if(x.t!=null)o.t=x.t;if(x.d!=null)o.d=x.d;}});});
+
+/* ---------- Klasse B base set (non-B & broken questions hidden everywhere, incl. counts) ---------- */
 const OTHERCLASS=/\b(motorcycle|motorbike|moped|scooter|pillion|helmet|truck|lorry|bus|coach|semi-?trailer|articulated|tachograph|air ?brake|hgv|goods vehicle|adr|combination vehicle|gross vehicle|trailer)\b/i;
 function isKlasseB(q){ if(q.id.startsWith("1."))return true; const p=q.id.slice(0,3); if(p==="2.6"||p==="2.7"||p==="2.8")return false; return !OTHERCLASS.test((q.q||"")+" "+(q.qd||"")); }
 const Q=DATA.questions.filter(isKlasseB);
@@ -396,6 +1203,11 @@ const CALC_IDS=new Set(["1.1.09-006","1.2.03-001","1.2.03-002","1.2.03-102","1.2
 let LANG=lsGet("dt_lang")||"en";
 let KNOWN=new Set(JSON.parse(lsGet("dt_known")||"[]"));
 function saveKnown(){lsSet("dt_known",JSON.stringify([...KNOWN]));}
+/* Wrongly-answered tracking: any question missed in Practice or the Mock Exam is added here;
+   answering it correctly again (in either mode) removes it — this is a live "needs review" list. */
+let WRONG=new Set(JSON.parse(lsGet("dt_wrong")||"[]"));
+function saveWrong(){lsSet("dt_wrong",JSON.stringify([...WRONG]));}
+function markResult(id,ok){ if(ok)WRONG.delete(id); else WRONG.add(id); saveWrong(); }
 const qText=q=>LANG==="de"&&q.qd?q.qd:q.q;
 const oText=(q,o)=>LANG==="de"&&o.d?o.d:o.t;
 const eText=q=>LANG==="de"&&q.ed?q.ed:q.e;
@@ -502,13 +1314,15 @@ function learnFiltered(){
     if(f==="multi"&&!isMulti(q))return false;
     if(f==="calc"&&!CALC_IDS.has(q.id))return false;
     if(f==="unknown"&&KNOWN.has(q.id))return false;
+    if(f==="wrong"&&!WRONG.has(q.id))return false;
     if(s&&!(q.q+" "+q.qd+" "+q.id).toLowerCase().includes(s))return false;
     return true;
   });
 }
 function learnRefresh(){ lPool=learnFiltered(); li=0; renderLearnCard(); }
+function updateLCount(){ $("#lCount").textContent=`${KNOWN.size} known · ${WRONG.size} to review`; $("#lReviewWrong").textContent=`⚠ Review mistakes (${WRONG.size})`; $("#lReviewWrong").disabled=!WRONG.size; }
 function renderLearnCard(){
-  $("#lCount").textContent=`${KNOWN.size} known`;
+  updateLCount();
   $("#lPos").textContent=lPool.length?`${li+1} / ${lPool.length}`:"0 / 0";
   if(!lPool.length){ $("#learnCard").innerHTML=`<div class="qcard"><div class="emptymsg">No questions match these filters.</div></div>`; return; }
   const q=lPool[li]; lSel=[];
@@ -529,13 +1343,14 @@ function renderLearnCard(){
     else{const at=lSel.indexOf(l);if(at>=0)lSel.splice(at,1);else lSel.push(l);op.setAttribute("aria-checked",lSel.includes(l));}
   }));
   $("#lCheck").onclick=learnCheck;
-  $("#lKnown").onclick=()=>{ const id=q.id; if(KNOWN.has(id))KNOWN.delete(id);else KNOWN.add(id); saveKnown(); $("#lKnown").classList.toggle("on"); $("#lKnown").textContent=KNOWN.has(id)?'Known ✓':'Mark known'; $("#lCount").textContent=`${KNOWN.size} known`; };
+  $("#lKnown").onclick=()=>{ const id=q.id; if(KNOWN.has(id))KNOWN.delete(id);else KNOWN.add(id); saveKnown(); $("#lKnown").classList.toggle("on"); $("#lKnown").textContent=KNOWN.has(id)?'Known ✓':'Mark known'; updateLCount(); };
 }
 function learnCheck(){
   const q=lPool[li]; let ok;
   if(q.num){ const v=$("#lNum").value; if(!norm(v))return; ok=q.c.some(c=>norm(c)===norm(v)); $("#lNum").disabled=true; $("#lNum").style.borderColor=ok?'var(--green)':'var(--red)'; }
   else{ if(!lSel.length)return; const cs=q.c.slice().sort().join(","),ss=lSel.slice().sort().join(","); ok=cs===ss;
     $$("#lOpts .opt").forEach(op=>{op.classList.add("locked");const l=op.dataset.l;if(q.c.includes(l))op.classList.add("correct");else if(lSel.includes(l))op.classList.add("wrong");}); }
+  markResult(q.id,ok); updateLCount();
   const ans=q.num?q.c.join(" / "):correctTextPlain(q);
   const ex=$("#lExplain"); ex.className="explain show "+(ok?"ok":"no");
   ex.innerHTML=`<div class="lab">${ok?'Correct ✓':'Not quite — correct answer: '+esc(ans)}</div>${esc(eText(q)||'')}`;
@@ -548,6 +1363,7 @@ lSearch.addEventListener("input",learnRefresh);
 $("#lPrev").onclick=()=>{ if(!lPool.length)return; li=(li-1+lPool.length)%lPool.length; renderLearnCard(); };
 $("#lNext").onclick=()=>{ if(!lPool.length)return; li=(li+1)%lPool.length; renderLearnCard(); };
 $("#lShuffle").onclick=()=>{ if(!lPool.length)return; lPool=shuffle(lPool); li=0; renderLearnCard(); };
+$("#lReviewWrong").onclick=()=>{ lFilter.value="wrong"; learnRefresh(); };
 learnRefresh();
 
 /* ============ FLASHCARDS ============ */
@@ -660,6 +1476,7 @@ function buildDeck(){
       if(f==="vid"&&!q.vid)return false;
       if(f==="p5"&&q.p!==5)return false;
       if(f==="unknown"&&KNOWN.has(q.id))return false;
+      if(f==="wrong"&&!WRONG.has(q.id))return false;
       return true;
     }).map(q=>({key:false,q}));
   }
@@ -693,13 +1510,19 @@ $("#fMarkUnknown").addEventListener("click",e=>{e.stopPropagation();const c=deck
 buildDeck();
 
 /* ============ MOCK EXAM ============ */
-$("#qScope").innerHTML=`<option value="all">Mixed — all topics (realistic)</option>`+META.themes.filter(t=>t.n>=30).map(t=>`<option value="${t.tk}">Focus: ${esc(t.th)}</option>`).join("")+`<option value="calc">Focus: Calculations</option>`;
+function refreshScope(){
+  const cur=$("#qScope").value;
+  $("#qScope").innerHTML=`<option value="all">Mixed — all topics (realistic)</option>`+META.themes.filter(t=>t.n>=30).map(t=>`<option value="${t.tk}">Focus: ${esc(t.th)}</option>`).join("")+`<option value="calc">Focus: Calculations</option>`+(WRONG.size?`<option value="wrong">⚠ Review mistakes (${WRONG.size})</option>`:``);
+  if([...$("#qScope").options].some(o=>o.value===cur))$("#qScope").value=cur;
+}
+refreshScope();
 let quiz=[],qi=0,sel=[],errPts=0,wrong5=0,answered=[];
-function showBest(){const b=lsGet("dt_bestErr");$("#bestScore").textContent=b!==null?`${b} pts`:"—";}
+function showBest(){const b=lsGet("dt_bestErr");$("#bestScore").textContent=b!==null?`${b} pts`:"—";$("#reviewCount").textContent=WRONG.size;}
 showBest();
 function pickQuiz(){
   const scope=$("#qScope").value;
-  let pool = scope==="all"?Q : scope==="calc"?Q.filter(q=>CALC_IDS.has(q.id)) : Q.filter(q=>q.tk===scope);
+  let pool = scope==="all"?Q : scope==="calc"?Q.filter(q=>CALC_IDS.has(q.id)) : scope==="wrong"?Q.filter(q=>WRONG.has(q.id)) : Q.filter(q=>q.tk===scope);
+  if(!pool.length) pool=Q;
   const five=shuffle(pool.filter(q=>q.p===5)).slice(0,7);
   const rest=shuffle(pool.filter(q=>q.p!==5));
   let set=[...five];for(const q of rest){if(set.length>=30)break;set.push(q);}
@@ -729,7 +1552,7 @@ function checkQ(){
   else{if(!sel.length)return;const cs=q.c.slice().sort().join(","),ss=sel.slice().sort().join(",");ok=cs===ss;$$("#opts .opt").forEach(op=>{op.classList.add("locked");const l=op.dataset.l;if(q.c.includes(l))op.classList.add("correct");else if(sel.includes(l))op.classList.add("wrong");});}
   const ex=$("#explain");const ans=q.num?q.c.join(" / "):correctTextPlain(q);
   ex.className="explain show "+(ok?"ok":"no");ex.innerHTML=`<div class="lab">${ok?'Correct':'Not quite — correct: '+esc(ans)}</div>${esc(eText(q)||'')}`;
-  if(!ok){errPts+=q.p;if(q.p===5)wrong5++;}$("#qerr").textContent=errPts;answered[qi]=ok;renderActions(true);
+  if(!ok){errPts+=q.p;if(q.p===5)wrong5++;}$("#qerr").textContent=errPts;answered[qi]=ok;markResult(q.id,ok);renderActions(true);
 }
 function nextQ(){if(qi<quiz.length-1){qi++;renderQ();}else finishQuiz();}
 function finishQuiz(){
@@ -742,10 +1565,13 @@ function finishQuiz(){
   else if(!passPts)reason=`${errPts} error points — the limit is 10.`;
   else if(!passVf)reason="Two 5-point right-of-way questions missed — an automatic fail even under 10 points.";
   else reason=`Within the limit with ${errPts} error point${errPts===1?'':'s'}.`;
+  refreshScope();
+  const missed=quiz.length-correct;
   $("#quizRun").classList.add("hide");const r=$("#quizResult");r.classList.remove("hide");
-  r.innerHTML=`<div class="result"><div class="verdict ${pass?'pass':'fail'}"><div class="big">${pass?'BESTANDEN':'DURCHGEFALLEN'}</div><div class="sub">${pass?'Passed — you would clear the real exam.':"Not passed — that's what practice is for."}</div></div><div class="rstats"><div class="rstat"><div class="rn tnum" style="color:var(--blue-ink)">${correct}/${quiz.length}</div><div class="rl">questions correct</div></div><div class="rstat"><div class="rn tnum" style="color:${errPts<=10?'var(--green)':'var(--red)'}">${errPts}</div><div class="rl">error points (max 10)</div></div><div class="rstat"><div class="rn tnum" style="color:${wrong5<2?'var(--green)':'var(--red)'}">${wrong5}</div><div class="rl">5-pt wrong (max 1)</div></div></div><p style="color:var(--ink-soft);margin-bottom:18px">${reason}</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn big" id="againBtn">New mock exam</button><button class="btn big ghost" id="reviewBtn">Back to practice</button></div></div>`;
+  r.innerHTML=`<div class="result"><div class="verdict ${pass?'pass':'fail'}"><div class="big">${pass?'BESTANDEN':'DURCHGEFALLEN'}</div><div class="sub">${pass?'Passed — you would clear the real exam.':"Not passed — that's what practice is for."}</div></div><div class="rstats"><div class="rstat"><div class="rn tnum" style="color:var(--blue-ink)">${correct}/${quiz.length}</div><div class="rl">questions correct</div></div><div class="rstat"><div class="rn tnum" style="color:${errPts<=10?'var(--green)':'var(--red)'}">${errPts}</div><div class="rl">error points (max 10)</div></div><div class="rstat"><div class="rn tnum" style="color:${wrong5<2?'var(--green)':'var(--red)'}">${wrong5}</div><div class="rl">5-pt wrong (max 1)</div></div></div><p style="color:var(--ink-soft);margin-bottom:18px">${reason}${missed?` You have <b>${WRONG.size}</b> question${WRONG.size===1?'':'s'} saved to review.`:''}</p><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn big" id="againBtn">New mock exam</button>${WRONG.size?'<button class="btn big" id="reviewWrongBtn">⚠ Review mistakes</button>':''}<button class="btn big ghost" id="reviewBtn">Back to practice</button></div></div>`;
   $("#againBtn").addEventListener("click",startQuiz);
   $("#reviewBtn").addEventListener("click",()=>{$('.tab[data-p="learn"]').click();});
+  if($("#reviewWrongBtn"))$("#reviewWrongBtn").addEventListener("click",()=>{$('.tab[data-p="learn"]').click();lFilter.value="wrong";learnRefresh();});
   window.scrollTo({top:0,behavior:"smooth"});
 }
 $("#startBtn").addEventListener("click",startQuiz);
