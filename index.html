@@ -1182,9 +1182,35 @@ const FIXES={
 };
 DATA.questions.forEach(q=>{const f=FIXES[q.id];if(!f)return;if(f.q){if(f.q.t!=null)q.q=f.q.t;if(f.q.d!=null)q.qd=f.q.d;}if(f.o&&q.o)q.o.forEach(o=>{const x=f.o[o.l];if(x){if(x.t!=null)o.t=x.t;if(x.d!=null)o.d=x.d;}});});
 
+/* ---------- Randomize option order ----------
+   The source catalog lists correct answers first, so every question showed the
+   correct option(s) on top. Shuffle each question's options and re-letter A/B/C
+   by new position, remapping q.c (correct letters) by tracking which options
+   were correct. Grading is letter-based, so all modes (learn, flashcards, mock)
+   stay consistent. Numeric-answer questions (q.num) are left untouched. */
+(function(){
+  const LET=["A.","B.","C.","D.","E.","F.","G.","H."];
+  DATA.questions.forEach(q=>{
+    if(q.num || !q.o || q.o.length<2 || !q.c || !q.c.length) return;
+    // Skip image-answer questions: options have no text and their letters refer
+    // to items inside the question picture, so re-lettering would desync them.
+    if(q.o.every(o=>!o.t && !o.d)) return;
+    const correctSet=new Set(q.c);
+    const tagged=q.o.map(o=>({o,correct:correctSet.has(o.l)}));
+    for(let i=tagged.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[tagged[i],tagged[j]]=[tagged[j],tagged[i]];}
+    q.o=tagged.map((x,idx)=>Object.assign({},x.o,{l:LET[idx]||((idx+1)+".")}));
+    q.c=q.o.filter((_,idx)=>tagged[idx].correct).map(o=>o.l);
+  });
+})();
+
 /* ---------- Klasse B base set (non-B & broken questions hidden everywhere, incl. counts) ---------- */
 const OTHERCLASS=/\b(motorcycle|motorbike|moped|scooter|pillion|helmet|truck|lorry|bus|coach|semi-?trailer|articulated|tachograph|air ?brake|hgv|goods vehicle|adr|combination vehicle|gross vehicle|trailer)\b/i;
-function isKlasseB(q){ if(q.id.startsWith("1."))return true; const p=q.id.slice(0,3); if(p==="2.6"||p==="2.7"||p==="2.8")return false; return !OTHERCLASS.test((q.q||"")+" "+(q.qd||"")); }
+/* Questions whose STEM looks class-neutral but whose options/explanation make clear it's about riding
+   YOUR OWN motorcycle/moped/scooter (own-vehicle handling, gear, parking a two-wheeler, etc.) - these are
+   Klasse-A/A1/A2 (motorcycle) content, not Klasse B (car), and were leaking into the car pool because the
+   old filter only scanned the question stem. Verified individually against the source question text. */
+const MOTOCLASS_ONLY=new Set(["1.1.07-141","2.1.01-009","2.1.01-010","2.1.03-003","2.1.03-005","2.1.03-009","2.1.03-039-M","2.1.03-045-M","2.1.03-046","2.1.07-118-M","2.2.12-007","2.2.12-008","2.2.14-009","2.2.14-010","2.2.22-002","2.2.22-003","2.2.22-004","2.2.22-010","2.2.23-003","2.2.23-020","2.2.23-051","2.2.23-058","2.2.23-062","2.2.23-065"]);
+function isKlasseB(q){ if(MOTOCLASS_ONLY.has(q.id))return false; if(q.id.startsWith("1."))return true; const p=q.id.slice(0,3); if(p==="2.6"||p==="2.7"||p==="2.8")return false; return !OTHERCLASS.test((q.q||"")+" "+(q.qd||"")); }
 const Q=DATA.questions.filter(isKlasseB);
 function buildMeta(qs){
   const themes=[],tmap={};
