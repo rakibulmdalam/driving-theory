@@ -1210,7 +1210,21 @@ const OTHERCLASS=/\b(motorcycle|motorbike|moped|scooter|pillion|helmet|truck|lor
    Klasse-A/A1/A2 (motorcycle) content, not Klasse B (car), and were leaking into the car pool because the
    old filter only scanned the question stem. Verified individually against the source question text. */
 const MOTOCLASS_ONLY=new Set(["1.1.07-141","2.1.01-009","2.1.01-010","2.1.03-003","2.1.03-005","2.1.03-009","2.1.03-039-M","2.1.03-045-M","2.1.03-046","2.1.07-118-M","2.2.12-007","2.2.12-008","2.2.14-009","2.2.14-010","2.2.22-002","2.2.22-003","2.2.22-004","2.2.22-010","2.2.23-003","2.2.23-020","2.2.23-051","2.2.23-058","2.2.23-062","2.2.23-065"]);
-function isKlasseB(q){ if(MOTOCLASS_ONLY.has(q.id))return false; if(q.id.startsWith("1."))return true; const p=q.id.slice(0,3); if(p==="2.6"||p==="2.7"||p==="2.8")return false; return !OTHERCLASS.test((q.q||"")+" "+(q.qd||"")); }
+const B_SUBS=new Set(["2.6.01","2.6.02","2.6.03","2.6.07","2.7.02","2.7.03","2.7.04","2.7.05","2.7.06","2.7.07","2.7.08","2.8.01"]);
+const MOTOTRUCK=/\b(motorcycle|motorbike|moped|scooter|pillion|helmet|handlebar|sidecar|two-wheel|truck|lorry|lorries|HGV|tachograph|semi-?trailer|air ?brake|driver.?s? card|omnibus|professional driver|Motorrad|Kraftrad|Mofa|Sozius|Lkw|Kraftomnibus|Sattelzug)\b/i;
+function qBlob(q){return (q.q||"")+" "+((q.o||[]).map(o=>(o.t||"")+" "+(o.d||"")).join(" "))+" "+(q.e||"")+" "+(q.ed||"");}
+/* Klasse B = section 1 (basic material) + car-relevant sub-chapters of 2.6/2.7/2.8 (was: whole
+   chapters wrongly hidden, which removed nearly all Technology questions), minus any question that
+   is actually about operating a motorcycle/truck. Interim until per-question licence class is scraped. */
+function isKlasseB(q){
+  if(MOTOCLASS_ONLY.has(q.id))return false;
+  if(q.id.startsWith("1."))return true;
+  const lic=(window.DT_LIC||{})[q.id];
+  if(lic&&lic.length) return lic.indexOf("B")>=0;   // authoritative: scraped licence classes
+  const p=q.id.slice(0,3), p6=q.id.slice(0,6);
+  if(p==="2.6"||p==="2.7"||p==="2.8") return B_SUBS.has(p6) && !MOTOTRUCK.test(qBlob(q));
+  return !OTHERCLASS.test((q.q||"")+" "+(q.qd||""));
+}
 const Q=DATA.questions.filter(isKlasseB);
 function buildMeta(qs){
   const themes=[],tmap={};
@@ -1559,7 +1573,7 @@ function renderQ(){
   const q=quiz[qi];sel=[];
   $("#qcount").textContent=`${qi+1} / ${quiz.length}`;$("#qerr").textContent=errPts;$("#qprog").style.width=(qi/quiz.length*100)+"%";
   const multi=isMulti(q),imgOpt=isImgOpt(q);
-  let body=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span class="pts ${q.p===5?'p5':''}">${q.p} points${q.p===5?' · right of way':''}</span>${multi?'<span class="pts">select all correct</span>':''}<span class="qid">${esc(q.id)}</span></div><div class="qtext">${esc(qText(q))}</div>${mediaHTML(q)}`;
+  let body=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span class="pts ${q.p===5?'p5':''}">${q.p} points${q.p===5?' · right of way':''}</span>${q.num?'':'<span class="pts">1 or more correct</span>'}<span class="qid">${esc(q.id)}</span></div><div class="qtext">${esc(qText(q))}</div>${mediaHTML(q)}`;
   if(q.num){ body+=`<div class="numinput"><input type="text" id="numAns" placeholder="Type answer" autocomplete="off"><span class="chtag">Type the value, then Check.</span></div>`; }
   else{
     body+=`<div class="opts" id="opts">`+q.o.map(o=>`<div class="opt" role="checkbox" aria-checked="false" data-l="${esc(o.l)}"><span class="box">${CHECK}</span><span class="lt">${esc(o.l)}</span><span class="otext">${imgOpt?'(see image)':esc(oText(q,o))}</span></div>`).join("")+`</div>`;
@@ -1570,7 +1584,7 @@ function renderQ(){
   if(!q.num)$$("#opts .opt").forEach(op=>op.addEventListener("click",()=>toggleOpt(op)));
   renderActions(false);
 }
-function toggleOpt(op){if(op.classList.contains("locked"))return;const l=op.dataset.l,q=quiz[qi];if(!isMulti(q)){sel=[l];$$("#opts .opt").forEach(o=>o.setAttribute("aria-checked",o.dataset.l===l));}else{const at=sel.indexOf(l);if(at>=0)sel.splice(at,1);else sel.push(l);op.setAttribute("aria-checked",sel.includes(l));}}
+function toggleOpt(op){if(op.classList.contains("locked"))return;const l=op.dataset.l;const at=sel.indexOf(l);if(at>=0)sel.splice(at,1);else sel.push(l);op.setAttribute("aria-checked",sel.includes(l));}
 function renderActions(isAns){const last=qi===quiz.length-1;$("#qactions").innerHTML=isAns?`<button class="btn" id="nextBtn">${last?'See results →':'Next question →'}</button>`:`<button class="btn" id="checkBtn">Check answer</button>`;if(isAns)$("#nextBtn").addEventListener("click",nextQ);else $("#checkBtn").addEventListener("click",checkQ);}
 function checkQ(){
   const q=quiz[qi];let ok;
