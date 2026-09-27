@@ -191,6 +191,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
 .rstat .rl{font-size:11.5px;color:var(--ink-soft);margin-top:3px}
 .databad{max-width:560px;margin:60px auto;text-align:center;background:var(--red-bg);border:1px solid var(--red);border-radius:14px;padding:26px;line-height:1.6}
 .databad code{font-family:ui-monospace,Menlo,monospace;background:var(--surface);padding:2px 6px;border-radius:5px}
+#p-learn.flatmode .pnav .iconbtn,#p-learn.flatmode #lPos{display:none}#p-learn.flatmode #learnCard .qcard{margin-bottom:18px}#lFlat.on{font-weight:700;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -244,6 +245,7 @@ select,input[type=text],input[type=search]{font-family:inherit;font-size:14.5px;
       <span class="pos tnum" id="lPos">0 / 0</span>
       <button class="iconbtn" id="lNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
       <button class="chip" id="lShuffle">Shuffle</button>
+      <button class="chip" id="lFlat">☰ All on one page</button>
       <span class="count-pill" id="lCount"></span>
       <button class="chip" id="lReviewWrong">⚠ Review mistakes</button>
     </div>
@@ -1342,7 +1344,7 @@ function fillChapters(){
   lChapter.innerHTML=`<option value="all">All chapters (${t.n})</option>`+t.chapters.map(c=>`<option value="${esc(c.ch)}">${esc(c.ch)} (${c.n})</option>`).join("");
 }
 fillChapters();
-let lPool=[],li=0,lSel=[];
+let lPool=[],li=0,lSel=[],flatMode=false;
 function learnFiltered(){
   const tk=lTheme.value,ch=lChapter.value,f=lFilter.value,s=lSearch.value.trim().toLowerCase();
   return Q.filter(q=>{
@@ -1359,7 +1361,7 @@ function learnFiltered(){
     return true;
   });
 }
-function learnRefresh(){ lPool=learnFiltered(); li=0; renderLearnCard(); }
+function learnRefresh(){ lPool=learnFiltered(); li=0; renderLearn(); }
 function updateLCount(){ $("#lCount").textContent=`${KNOWN.size} known · ${WRONG.size} to review`; $("#lReviewWrong").textContent=`⚠ Review mistakes (${WRONG.size})`; $("#lReviewWrong").disabled=!WRONG.size; }
 function renderLearnCard(){
   updateLCount();
@@ -1367,7 +1369,7 @@ function renderLearnCard(){
   if(!lPool.length){ $("#learnCard").innerHTML=`<div class="qcard"><div class="emptymsg">No questions match these filters.</div></div>`; return; }
   const q=lPool[li]; lSel=[];
   const multi=isMulti(q), imgOpt=isImgOpt(q), known=KNOWN.has(q.id);
-  let body=`<div class="qhead"><span class="qid">${esc(q.id)}</span><span class="pts${q.p===5?' p5':''}">${q.p} pts</span>${multi?'<span class="pts">select all correct</span>':''}<span class="chtag">${esc(q.ch)}</span></div>
+  let body=`<div class="qhead"><span class="qid">${esc(q.id)}</span><span class="pts${q.p===5?' p5':''}">${q.p} pts</span><span class="chtag">${esc(q.ch)}</span></div>
     <div class="qtext">${esc(qText(q))}</div>${mediaHTML(q)}`;
   if(q.num){ body+=`<div class="numinput"><input type="text" id="lNum" placeholder="Type answer" autocomplete="off"><span class="chtag">Type the value, then Check.</span></div>`; }
   else{
@@ -1379,8 +1381,7 @@ function renderLearnCard(){
   if(!q.num)$$("#lOpts .opt").forEach(op=>op.addEventListener("click",()=>{
     if(op.classList.contains("locked"))return;
     const l=op.dataset.l;
-    if(!multi){lSel=[l];$$("#lOpts .opt").forEach(o=>o.setAttribute("aria-checked",o.dataset.l===l));}
-    else{const at=lSel.indexOf(l);if(at>=0)lSel.splice(at,1);else lSel.push(l);op.setAttribute("aria-checked",lSel.includes(l));}
+    {const at=lSel.indexOf(l);if(at>=0)lSel.splice(at,1);else lSel.push(l);op.setAttribute("aria-checked",lSel.includes(l));}
   }));
   $("#lCheck").onclick=learnCheck;
   $("#lKnown").onclick=()=>{ const id=q.id; if(KNOWN.has(id))KNOWN.delete(id);else KNOWN.add(id); saveKnown(); $("#lKnown").classList.toggle("on"); $("#lKnown").textContent=KNOWN.has(id)?'Known ✓':'Mark known'; updateLCount(); };
@@ -1398,11 +1399,18 @@ function learnCheck(){
   btn.textContent=last?'Restart (shuffle) ↻':'Next question →';
   btn.onclick=()=>{ if(last){lPool=shuffle(lPool);li=0;} else {li++;} renderLearnCard(); window.scrollTo({top:0,behavior:"smooth"}); };
 }
+function renderLearn(){ flatMode?renderLearnFlat():renderLearnCard(); }
+function flatOptsHTML(q){const imgOpt=isImgOpt(q);return `<div class="opts">`+q.o.map(o=>`<div class="opt" role="checkbox" aria-checked="false" data-l="${esc(o.l)}"><span class="box">${CHECK}</span><span class="lt">${esc(o.l)}</span><span class="otext">${imgOpt?'(see image)':esc(oText(q,o))}</span></div>`).join("")+`</div>`+(imgOpt?`<div class="chtag" style="margin-top:8px">Options refer to the picture above.</div>`:``);}
+function flatCardHTML(q,idx){const known=KNOWN.has(q.id);let b=`<div class="qhead"><span class="qid">${esc(q.id)}</span><span class="pts${q.p===5?' p5':''}">${q.p} pts</span><span class="chtag">${esc(q.ch)}</span></div><div class="qtext">${esc(qText(q))}</div>${mediaHTML(q)}`;b+=q.num?`<div class="numinput"><input type="text" class="fNum" placeholder="Type answer" autocomplete="off"></div>`:flatOptsHTML(q);b+=`<div class="explain fEx"></div><div class="qactions"><button class="btn fChk">Check answer</button><button class="knownbtn${known?' on':''}" data-fknown>${known?'Known ✓':'Mark known'}</button></div>`;return `<div class="qcard" data-idx="${idx}">${b}</div>`;}
+function renderLearnFlat(){updateLCount();$("#lPos").textContent=lPool.length?`${lPool.length} questions`:"0";$("#learnCard").innerHTML=lPool.length?lPool.map((q,i)=>flatCardHTML(q,i)).join(""):`<div class="qcard"><div class="emptymsg">No questions match these filters.</div></div>`;}
+function flatCheck(card,q){let ok;if(q.num){const inp=card.querySelector(".fNum");if(!inp||!norm(inp.value))return;ok=q.c.some(c=>norm(c)===norm(inp.value));inp.disabled=true;inp.style.borderColor=ok?'var(--green)':'var(--red)';}else{const sel=[...card.querySelectorAll('.opt[aria-checked="true"]')].map(o=>o.dataset.l);if(!sel.length)return;ok=q.c.slice().sort().join(",")===sel.slice().sort().join(",");card.querySelectorAll(".opt").forEach(op=>{op.classList.add("locked");const l=op.dataset.l;if(q.c.includes(l))op.classList.add("correct");else if(sel.includes(l))op.classList.add("wrong");});}markResult(q.id,ok);updateLCount();const ans=q.num?q.c.join(" / "):correctTextPlain(q);const ex=card.querySelector(".fEx");ex.className="explain fEx show "+(ok?"ok":"no");ex.innerHTML=`<div class="lab">${ok?'Correct ✓':'Not quite — correct answer: '+esc(ans)}</div>${esc(eText(q)||'')}`;const btn=card.querySelector(".fChk");if(btn){btn.disabled=true;btn.textContent=ok?'Correct ✓':'Checked';}}
+$("#learnCard").addEventListener("click",e=>{if(!flatMode)return;const card=e.target.closest(".qcard");if(!card||card.dataset.idx===undefined)return;const q=lPool[+card.dataset.idx];if(!q)return;const opt=e.target.closest(".opt");if(opt){if(!opt.classList.contains("locked"))opt.setAttribute("aria-checked",opt.getAttribute("aria-checked")!=="true");return;}if(e.target.closest(".fChk")){flatCheck(card,q);return;}const kb=e.target.closest("[data-fknown]");if(kb){if(KNOWN.has(q.id))KNOWN.delete(q.id);else KNOWN.add(q.id);saveKnown();kb.classList.toggle("on");kb.textContent=KNOWN.has(q.id)?'Known ✓':'Mark known';updateLCount();}});
+$("#lFlat").onclick=()=>{flatMode=!flatMode;const b=$("#lFlat");b.classList.toggle("on",flatMode);b.textContent=flatMode?'▤ One at a time':'☰ All on one page';$("#p-learn").classList.toggle("flatmode",flatMode);renderLearn();window.scrollTo({top:0,behavior:"smooth"});};
 [lTheme,lChapter,lFilter].forEach(el=>el.addEventListener("change",()=>{if(el===lTheme)fillChapters();learnRefresh();}));
 lSearch.addEventListener("input",learnRefresh);
-$("#lPrev").onclick=()=>{ if(!lPool.length)return; li=(li-1+lPool.length)%lPool.length; renderLearnCard(); };
-$("#lNext").onclick=()=>{ if(!lPool.length)return; li=(li+1)%lPool.length; renderLearnCard(); };
-$("#lShuffle").onclick=()=>{ if(!lPool.length)return; lPool=shuffle(lPool); li=0; renderLearnCard(); };
+$("#lPrev").onclick=()=>{ if(flatMode||!lPool.length)return; li=(li-1+lPool.length)%lPool.length; renderLearnCard(); };
+$("#lNext").onclick=()=>{ if(flatMode||!lPool.length)return; li=(li+1)%lPool.length; renderLearnCard(); };
+$("#lShuffle").onclick=()=>{ if(!lPool.length)return; lPool=shuffle(lPool); li=0; renderLearn(); };
 $("#lReviewWrong").onclick=()=>{ lFilter.value="wrong"; learnRefresh(); };
 learnRefresh();
 
