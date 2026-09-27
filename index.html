@@ -1256,7 +1256,7 @@ const eText=q=>LANG==="de"&&q.ed?q.ed:q.e;
 const isMulti=q=>q.c.length>1;
 const isImgOpt=q=>!q.num&&q.o.every(o=>!o.t&&!o.d);
 
-/* ---------- media (single clean player; video autoplays muted, no thumbnail) ---------- */
+/* ---------- media (single clean player; video plays only on user click) ---------- */
 function mediaHTML(q){
   const vids=q.vid||[];
   // Video questions also carry a still thumbnail image — show ONLY the video for those.
@@ -1264,7 +1264,7 @@ function mediaHTML(q){
   if(!imgs.length&&!vids.length) return "";
   let h='<div class="media">';
   imgs.forEach(p=>{ h+=`<div class="m"><img loading="lazy" src="${esc(p)}" alt="Illustration ${esc(q.id)}" onerror="mediaFail(this,'${esc(p)}')"></div>`; });
-  vids.forEach(p=>{ h+=`<div class="m"><video autoplay muted loop playsinline controls preload="auto" onerror="mediaFail(this,'${esc(p)}')"><source src="${esc(p)}" type="video/mp4"></video></div>`; });
+  vids.forEach(p=>{ h+=`<div class="m"><video muted playsinline controls preload="metadata" onerror="mediaFail(this,'${esc(p)}')"><source src="${esc(p)}" type="video/mp4"></video></div>`; });
   return h+'</div>';
 }
 window.mediaFail=function(el,path){
